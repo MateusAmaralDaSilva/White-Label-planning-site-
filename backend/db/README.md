@@ -197,9 +197,26 @@ uma senha **placeholder** que DEVE ser trocada antes de qualquer uso real:
 
 ```sql
 -- rode como o DONO do banco
+-- IMPORTANTE: qualifique com `public.` — o pgcrypto vive no schema `public`
+-- (0001), mas o search_path da role da app e das funções não o inclui, então
+-- `crypt`/`gen_salt` sem qualificar dão "função não existe".
 update app.users
-   set password_hash = crypt('SUA-SENHA-FORTE', gen_salt('bf', 12))
+   set password_hash = public.crypt('SUA-SENHA-FORTE', public.gen_salt('bf', 12))
  where email = 'silvaamaralmateus@gmail.com';
+```
+
+Também funciona pela role `whitelabel_app` (ela mantém `UPDATE` em `app.users`; o
+0019 revogou só o `SELECT` da coluna `password_hash`). Nesse caso, ative o
+contexto de tenant antes — a role tem `NOBYPASSRLS`, então o RLS esconde a linha
+sem ele:
+
+```sql
+begin;
+set local app.current_tenant = 'platform';  -- tenant do usuário alvo
+update app.users
+   set password_hash = public.crypt('SUA-SENHA-FORTE', public.gen_salt('bf', 12))
+ where email = 'silvaamaralmateus@gmail.com';
+commit;
 ```
 
 Para promover outro usuário a admin (ou revogar):

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { Brand, Button, Field, Input, PasswordInput } from '@/components/ui'
 import { useAuthStore } from '@/store/authStore'
+import { ApiError } from '@/lib/api'
 
 /** Painel do formulário de login (e-mail + senha) com a lógica de autenticação. */
 export function LoginForm() {
@@ -21,13 +22,27 @@ export function LoginForm() {
       return
     }
     setLoading(true)
-    const ok = await login(email, password)
-    setLoading(false)
-    if (ok) {
-      // Admin de plataforma vai direto para o painel de contas.
-      const isAdmin = useAuthStore.getState().user?.isPlatformAdmin ?? false
-      navigate(isAdmin ? '/admin' : '/')
-    } else setError('Credenciais inválidas. Tente novamente.')
+    try {
+      const ok = await login(email, password)
+      if (ok) {
+        // Admin de plataforma vai direto para o painel de contas.
+        const isAdmin = useAuthStore.getState().user?.isPlatformAdmin ?? false
+        navigate(isAdmin ? '/admin' : '/')
+      } else {
+        // login() só devolve false em 401 → credenciais realmente inválidas.
+        setError('Credenciais inválidas. Tente novamente.')
+      }
+    } catch (e) {
+      // API fora do ar (status 0) ou erro de servidor (5xx): mostra a causa real
+      // em vez de mascarar como "senha errada".
+      setError(
+        e instanceof ApiError
+          ? e.message
+          : 'Erro inesperado ao entrar. Tente novamente.',
+      )
+    } finally {
+      setLoading(false)
+    }
   }
 
   const invalid = !!error

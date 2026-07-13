@@ -32,9 +32,12 @@ export const useAuthStore = create<AuthState>()(
           set({ isAuthenticated: true, token, user, userEmail: user.email })
           return true
         } catch (e) {
-          // Credenciais inválidas ou API fora do ar → login falha.
-          if (!(e instanceof ApiError)) console.error('Erro no login', e)
-          return false
+          // 401 = credenciais realmente inválidas → retorno normal (false). Os
+          // demais erros (API fora do ar = status 0, 5xx, etc.) SOBEM para a UI
+          // poder distinguir "senha errada" de "backend inacessível" — antes tudo
+          // virava "credenciais inválidas" e escondia a API fora do ar.
+          if (e instanceof ApiError && e.status === 401) return false
+          throw e
         }
       },
 
