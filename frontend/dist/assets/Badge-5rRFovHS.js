@@ -1,0 +1,1 @@
+import{j as s,k as a,V as r}from"./index-DOcTnL8b.js";function o({tone:e="neutral",className:n,children:t}){return s.jsx("span",{className:a("inline-flex items-center rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",r[e],n),children:t})}export{o as B};
