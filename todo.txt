@@ -1,0 +1,6 @@
+
+Documentar e verificar corretude.
+
+clientes externos poderem agendar? (por enquanto não)
+criar testesecreto@gmail.com 
+evitar duplicação de produto por caracter diferente
