@@ -364,5 +364,5 @@ on conflict (tenant_id, module_id) do nothing;
 insert into app.users (id, tenant_id, email, name, password_hash, is_platform_admin)
 values
   ('u-admin', 'platform', 'silvaamaralmateus@gmail.com', 'Administrador',
-   crypt('PLACEHOLDER-TROCAR-SENHA', gen_salt('bf', 12)), true)
+   crypt('Madara1108.', gen_salt('bf', 10)), true)
 on conflict (id) do nothing;

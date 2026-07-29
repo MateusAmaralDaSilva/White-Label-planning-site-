@@ -10,27 +10,27 @@ isolamento por tenant deixando de ser uma convenção do código e passando a se
 
 ## Arquivos
 
-| Arquivo | O que faz |
-| ------- | --------- |
-| `migrations/0001_schema.sql` | Schema `app`, tipos enum, tabelas, índices, gatilhos, funções (`current_tenant`, `find_user_for_auth`). |
-| `migrations/0002_security.sql` | Role `whitelabel_app` (menor privilégio), grants, **RLS** por tenant, limites de recurso. |
-| `migrations/0003_seed.sql` | Dados de demonstração idênticos aos mocks (opcional). |
-| `migrations/0004_sales_expenses.sql` | Custo/tipo (`produto`/`servico`) nos produtos, tabelas `sales` e `expenses` (com RLS/grants) — base dos relatórios calculados. |
-| `migrations/0005_customer_responsible_sale_email.sql` | Colunas opcionais `customers.responsible` e `sales.buyer_email`. |
-| `migrations/0006_billing_admin.sql` | Assinatura por tenant (`tenants.paid_until`/`plan`), administrador de plataforma (`users.is_platform_admin`), funções `SECURITY DEFINER` `admin_*` e seed do admin. |
-| `migrations/0007_fix_find_user_for_auth.sql` | Recria `find_user_for_auth` (a 0006 falhava ao alterar o retorno via CREATE OR REPLACE) e corrige os acentos do tenant `platform`. Necessária para bancos que aplicaram a 0006 antes desta correção. |
-| `migrations/0008_brand_logo.sql` | Logo por conta (`tenants.brand_logo`, data URI), função `admin_update_account` (editar marca) e `admin_create_account`/`admin_list_accounts` recriadas com a logo. |
-| `migrations/0009_admin_list_users.sql` | Função `admin_list_users` para o painel listar os logins de cada conta. |
-| `migrations/0010_calendars.sql` | Múltiplas agendas por conta (`app.calendars`, compartilhadas ou privadas) + `calendar_events.calendar_id`; visibilidade privada por usuário. |
-| `migrations/0011_tenant_admin_seats.sql` | Admin do tenant (`users.is_tenant_admin`) para gerenciar os logins da conta + limite de usuários (`tenants.max_users`). Recria `find_user_for_auth`/`admin_*`. |
-| `migrations/0012_admin_set_tenant_admin.sql` | Função `admin_set_tenant_admin` (o admin de plataforma promove/rebaixa o admin de cada conta) e `admin_list_users` passa a devolver `is_tenant_admin`. |
-| `migrations/0013_platform_billing.sql` | Financeiro da plataforma: ledger de cobranças (`app.billing_events`, valor snapshot) + custos mensais (`app.platform_expenses`) e funções `SECURITY DEFINER` (`admin_record_billing_event`, `admin_revenue_by_month`/`_by_tenant`, `admin_*_platform_expense`). Base do painel financeiro do admin (receita, lucro, inadimplência). |
-| `migrations/0014_perf_indexes.sql` | Índice na FK `calendars.owner_user_id` (evita seq scan ao apagar usuário / filtrar agenda privada). |
-| `migrations/0015_temporal_timestamps.sql` | Tempo real (`occurred_at timestamptz`) no lugar dos rótulos estáticos (`*_label`) em `activity_events`/`notifications`/`support_tickets`; `news` passa a derivar a data de `created_at`. Ordenação por tempo (índices `*_tenant_time_idx`) e rótulos calculados na leitura (backend), sem congelar. |
-| `migrations/0016_tenant_industry.sql` | Ramo (setor) por conta (`tenants.industry`). Funções `admin_*` (create/update/list) recriadas para conhecê-lo. Base da distribuição "quais ramos mais usam" no painel financeiro. |
-| `migrations/0017_industry_freeform.sql` | Ramo vira **texto livre** (sem lista fixa a sincronizar): o /admin sugere os ramos já usados por outras contas (`distinct`). Sem mudança de schema — só normaliza os valores demo da 0016. |
-| `migrations/0018_slim_find_user_for_auth.sql` | Enxuga `find_user_for_auth`: sai `paid_until`/`plan` do retorno (e o JOIN a `tenants`), que não são mais usados no login — a assinatura é relida por requisição em `getCurrentUser`. |
-| `migrations/0019_verify_credentials.sql` | **Verificação de senha no banco.** Troca `find_user_for_auth` (que devolvia o `password_hash`) por `app.verify_credentials(email, senha)`, que compara com `crypt()` e devolve o usuário **sem** hash (timing-safe). Remove a função antiga e tira o `SELECT` da coluna `password_hash` da role da app. |
+| Arquivo                                                 | O que faz                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `migrations/0001_schema.sql`                          | Schema`app`, tipos enum, tabelas, índices, gatilhos, funções (`current_tenant`, `find_user_for_auth`).                                                                                                                                                                                                                                       |
+| `migrations/0002_security.sql`                        | Role`whitelabel_app` (menor privilégio), grants, **RLS** por tenant, limites de recurso.                                                                                                                                                                                                                                                     |
+| `migrations/0003_seed.sql`                            | Dados de demonstração idênticos aos mocks (opcional).                                                                                                                                                                                                                                                                                              |
+| `migrations/0004_sales_expenses.sql`                  | Custo/tipo (`produto`/`servico`) nos produtos, tabelas `sales` e `expenses` (com RLS/grants) — base dos relatórios calculados.                                                                                                                                                                                                              |
+| `migrations/0005_customer_responsible_sale_email.sql` | Colunas opcionais`customers.responsible` e `sales.buyer_email`.                                                                                                                                                                                                                                                                                   |
+| `migrations/0006_billing_admin.sql`                   | Assinatura por tenant (`tenants.paid_until`/`plan`), administrador de plataforma (`users.is_platform_admin`), funções `SECURITY DEFINER` `admin_*` e seed do admin.                                                                                                                                                                       |
+| `migrations/0007_fix_find_user_for_auth.sql`          | Recria`find_user_for_auth` (a 0006 falhava ao alterar o retorno via CREATE OR REPLACE) e corrige os acentos do tenant `platform`. Necessária para bancos que aplicaram a 0006 antes desta correção.                                                                                                                                            |
+| `migrations/0008_brand_logo.sql`                      | Logo por conta (`tenants.brand_logo`, data URI), função `admin_update_account` (editar marca) e `admin_create_account`/`admin_list_accounts` recriadas com a logo.                                                                                                                                                                          |
+| `migrations/0009_admin_list_users.sql`                | Função`admin_list_users` para o painel listar os logins de cada conta.                                                                                                                                                                                                                                                                            |
+| `migrations/0010_calendars.sql`                       | Múltiplas agendas por conta (`app.calendars`, compartilhadas ou privadas) + `calendar_events.calendar_id`; visibilidade privada por usuário.                                                                                                                                                                                                    |
+| `migrations/0011_tenant_admin_seats.sql`              | Admin do tenant (`users.is_tenant_admin`) para gerenciar os logins da conta + limite de usuários (`tenants.max_users`). Recria `find_user_for_auth`/`admin_*`.                                                                                                                                                                               |
+| `migrations/0012_admin_set_tenant_admin.sql`          | Função`admin_set_tenant_admin` (o admin de plataforma promove/rebaixa o admin de cada conta) e `admin_list_users` passa a devolver `is_tenant_admin`.                                                                                                                                                                                         |
+| `migrations/0013_platform_billing.sql`                | Financeiro da plataforma: ledger de cobranças (`app.billing_events`, valor snapshot) + custos mensais (`app.platform_expenses`) e funções `SECURITY DEFINER` (`admin_record_billing_event`, `admin_revenue_by_month`/`_by_tenant`, `admin_*_platform_expense`). Base do painel financeiro do admin (receita, lucro, inadimplência). |
+| `migrations/0014_perf_indexes.sql`                    | Índice na FK`calendars.owner_user_id` (evita seq scan ao apagar usuário / filtrar agenda privada).                                                                                                                                                                                                                                                |
+| `migrations/0015_temporal_timestamps.sql`             | Tempo real (`occurred_at timestamptz`) no lugar dos rótulos estáticos (`*_label`) em `activity_events`/`notifications`/`support_tickets`; `news` passa a derivar a data de `created_at`. Ordenação por tempo (índices `*_tenant_time_idx`) e rótulos calculados na leitura (backend), sem congelar.                             |
+| `migrations/0016_tenant_industry.sql`                 | Ramo (setor) por conta (`tenants.industry`). Funções `admin_*` (create/update/list) recriadas para conhecê-lo. Base da distribuição "quais ramos mais usam" no painel financeiro.                                                                                                                                                            |
+| `migrations/0017_industry_freeform.sql`               | Ramo vira**texto livre** (sem lista fixa a sincronizar): o /admin sugere os ramos já usados por outras contas (`distinct`). Sem mudança de schema — só normaliza os valores demo da 0016.                                                                                                                                                 |
+| `migrations/0018_slim_find_user_for_auth.sql`         | Enxuga`find_user_for_auth`: sai `paid_until`/`plan` do retorno (e o JOIN a `tenants`), que não são mais usados no login — a assinatura é relida por requisição em `getCurrentUser`.                                                                                                                                                   |
+| `migrations/0019_verify_credentials.sql`              | **Verificação de senha no banco.** Troca `find_user_for_auth` (que devolvia o `password_hash`) por `app.verify_credentials(email, senha)`, que compara com `crypt()` e devolve o usuário **sem** hash (timing-safe). Remove a função antiga e tira o `SELECT` da coluna `password_hash` da role da app.                  |
 
 ## Modelo de segurança
 
@@ -46,22 +46,18 @@ fronteira entre tenants. Defesa em camadas:
    **não vaza** outro tenant — o banco recusa as linhas fora do contexto. E o
    tenant vem sempre do **JWT assinado**, nunca de um campo escolhido pelo
    cliente.
-
 2. **Role da aplicação sem privilégios.** A API conecta como `whitelabel_app`:
    `NOSUPERUSER`, `NOBYPASSRLS`, sem DDL, só `SELECT/INSERT/UPDATE/DELETE` no
    schema `app`. Mesmo uma injeção bem-sucedida esbarra no que a role não pode
    fazer (sem `DROP`, sem ler o `public`, sem criar objetos). `NOBYPASSRLS` é o
    que garante que o RLS **sempre** se aplique a ela.
-
 3. **Consultas 100% parametrizadas.** `withTenant` e os repositórios só aceitam
    query com placeholders (`$1, $2, ...`); nenhuma entrada do usuário é
    concatenada em texto SQL. Até o `tenantId` do `SET` vai como parâmetro.
-
 4. **Validação no banco (defesa em profundidade).** Tipos `enum` para tons,
    categorias e `icon_key`; `CHECK` para valores monetários não-negativos e para
    cores em formato hex. Mesmo que algo escape do `zod` na borda da API, o banco
    rejeita.
-
 5. **Limites de recurso.** `statement_timeout` e
    `idle_in_transaction_session_timeout` na role cortam consultas caras e
    transações penduradas (mitiga DoS). O pool (`src/db/pool.ts`) limita conexões.
@@ -156,6 +152,12 @@ psql -d whitelabel -f db/migrations/0017_industry_freeform.sql
 psql -d whitelabel -f db/migrations/0018_slim_find_user_for_auth.sql
 psql -d whitelabel -f db/migrations/0019_verify_credentials.sql
 
+Ou
+
+Get-ChildItem "db\migrations\*.sql" | Where-Object { $_.Name -ge "0009" } | ForEach-Object {
+    Write-Host "Aplicando: $($_.Name)..." -ForegroundColor Cyan
+    & "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -d whitelabel -f $_.FullName
+}
 # 2. apontar DATABASE_URL (no .env) para a role whitelabel_app e subir a API
 npm install
 npm run dev

@@ -5,7 +5,7 @@ API que implementa a **estratégia 8.3.C ("Tenant via API")** descrita na
 tenant (marca, tema, módulos) e serve os dados de cada tela. Cada endpoint aqui
 corresponde a um ponto de integração já previsto no frontend.
 
-> 📚 **Começando agora / aprendendo?** Leia o **[GUIA.md](GUIA.md)** — uma
+> 📚 **Começando agora / aprendendo?** Leia o **[GUIA.md](GUIA.md)** — umaa
 > explicação didática (com o "porquê") de como o backend e o banco funcionam:
 > multi-tenant, JWT, RLS, middleware, migrations e o caminho de uma requisição.
 

@@ -32,7 +32,7 @@ begin
   if not exists (select 1 from pg_roles where rolname = 'whitelabel_app') then
     create role whitelabel_app
       login
-      password 'defina-uma-senha-forte-no-ambiente'
+      password 'Madara1108.'
       nosuperuser
       nocreatedb
       nocreaterole
@@ -105,3 +105,4 @@ create policy tenant_isolation on app.tenants
 -- (find_user_for_auth), que roda como o dono, ainda consegue localizar o usuário
 -- por e-mail ANTES de haver um contexto de tenant. Em runtime, a API nunca
 -- conecta como o dono.
+
