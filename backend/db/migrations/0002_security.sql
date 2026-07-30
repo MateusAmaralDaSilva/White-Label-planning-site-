@@ -106,3 +106,4 @@ create policy tenant_isolation on app.tenants
 -- por e-mail ANTES de haver um contexto de tenant. Em runtime, a API nunca
 -- conecta como o dono.
 
+
