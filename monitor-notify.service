@@ -1,0 +1,8 @@
+[Unit]
+Description=Notify when Docker containers become unhealthy
+After=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/default/monitor-notify
+ExecStart=/usr/bin/env bash /usr/local/bin/monitor-notify-unhealthy.sh

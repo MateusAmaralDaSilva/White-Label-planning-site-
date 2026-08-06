@@ -32,15 +32,15 @@ por **HTTP**, trocando **JSON**.
 
 ## 2. A stack (as ferramentas) e por que cada uma
 
-| Ferramenta | Para quê serve | Por que ela |
-| --- | --- | --- |
-| **Node.js + TypeScript** | Rodar JavaScript no servidor, com tipos | Mesma linguagem do frontend; os tipos pegam erros antes de rodar |
-| **Express** | Receber requisições HTTP e roteá-las | Minimalista, fácil de entender |
-| **PostgreSQL** | Guardar os dados (banco relacional) | Robusto e com **RLS** (isolamento por tenant no próprio banco) |
-| **`pg`** | Falar com o Postgres a partir do Node | Driver oficial |
-| **JWT** (`jsonwebtoken`) | Provar quem é o usuário sem guardar sessão no servidor | Simples e "stateless" |
-| **bcryptjs** | Guardar senhas de forma segura (hash) | Padrão da indústria para senhas |
-| **zod** | Validar os dados que chegam | Valida _e_ gera os tipos, sem duplicar |
+| Ferramenta                       | Para quê serve                                           | Por que ela                                                          |
+| -------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------- |
+| **Node.js + TypeScript**   | Rodar JavaScript no servidor, com tipos                   | Mesma linguagem do frontend; os tipos pegam erros antes de rodar     |
+| **Express**                | Receber requisições HTTP e roteá-las                   | Minimalista, fácil de entender                                      |
+| **PostgreSQL**             | Guardar os dados (banco relacional)                       | Robusto e com**RLS** (isolamento por tenant no próprio banco) |
+| **`pg`**                 | Falar com o Postgres a partir do Node                     | Driver oficial                                                       |
+| **JWT** (`jsonwebtoken`) | Provar quem é o usuário sem guardar sessão no servidor | Simples e "stateless"                                                |
+| **bcryptjs**               | Guardar senhas de forma segura (hash)                     | Padrão da indústria para senhas                                    |
+| **zod**                    | Validar os dados que chegam                               | Valida_e_ gera os tipos, sem duplicar                              |
 
 ---
 

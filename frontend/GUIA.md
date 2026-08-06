@@ -36,15 +36,15 @@ Duas características centrais do produto (detalhadas adiante):
 
 ## 2. A stack (as ferramentas) e por que cada uma
 
-| Ferramenta | Para quê serve | Por que ela |
-| --- | --- | --- |
-| **Vite** | "Servidor de desenvolvimento" + empacotador | Rápido, recarrega na hora que você salva (HMR) |
-| **React + TypeScript** | Montar a interface com componentes tipados | Padrão de mercado; os tipos pegam erros cedo |
-| **Tailwind CSS** | Estilizar usando "classes utilitárias" | Tokens de cor → tema trocável (whitelabel) |
-| **Zustand** | Guardar estado **global** (compartilhado entre telas) | Simples, quase sem código |
-| **React Router** | Trocar de tela conforme a URL | Roteamento numa SPA |
-| **@dnd-kit** | Arrastar para reordenar módulos | Drag & drop pronto |
-| **lucide-react** | Ícones | Consistentes e leves |
+| Ferramenta                   | Para quê serve                                            | Por que ela                                      |
+| ---------------------------- | ---------------------------------------------------------- | ------------------------------------------------ |
+| **Vite**               | "Servidor de desenvolvimento" + empacotador                | Rápido, recarrega na hora que você salva (HMR) |
+| **React + TypeScript** | Montar a interface com componentes tipados                 | Padrão de mercado; os tipos pegam erros cedo    |
+| **Tailwind CSS**       | Estilizar usando "classes utilitárias"                    | Tokens de cor → tema trocável (whitelabel)     |
+| **Zustand**            | Guardar estado**global** (compartilhado entre telas) | Simples, quase sem código                       |
+| **React Router**       | Trocar de tela conforme a URL                              | Roteamento numa SPA                              |
+| **@dnd-kit**           | Arrastar para reordenar módulos                           | Drag & drop pronto                               |
+| **lucide-react**       | Ícones                                                    | Consistentes e leves                             |
 
 ---
 
@@ -242,26 +242,31 @@ seu próprio arquivo.
 ## 7. As funcionalidades, por área
 
 ### 7.1. Login e sessão
+
 `pages/login/` + `store/authStore.ts`. O token fica guardado e é anexado a cada
 requisição por `lib/api.ts`. `GET /api/auth/me` reidrata a sessão no reload.
 
 ### 7.2. Whitelabel (marca, tema, módulos)
+
 `hooks/useBootstrap.ts` aplica a config do tenant. A **marca** (nome/sigla/logo)
 vem do `brandStore`; o **tema** do `themeStore` (a escolha manual do usuário vence
 a do tenant); os **módulos** do `appStore`. Trocar a cara de um cliente é editar
 dados, não componentes (§4.2).
 
 ### 7.3. Módulos de negócio
+
 Cada um em `modules/*/index.tsx`, todos no mesmo molde (§8): Produtos, Serviços
 (compartilham o `Catalog`), Vendas, Clientes, Agenda, Relatórios, Chamados,
 Dashboard, além de Home (portal) e Atividades (feed).
 
 ### 7.4. Assinatura
+
 `components/Paywall.tsx` cobre o painel quando a assinatura está inativa; um
 **banner** no topo avisa quando faltam ≤7 dias. O frontend só espelha o estado que
 o backend informa (`billing`) e impõe (HTTP 402).
 
 ### 7.5. Áreas administrativas
+
 - `pages/admin/` (só dono da plataforma): abas **Contas** (provisionar/editar
   contas, creditar meses, definir ramo) e **Financeiro** (`pages/admin/analytics/`,
   com os gráficos de `components/charts`).
