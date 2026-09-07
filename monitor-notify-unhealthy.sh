@@ -1,21 +1,10 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env bash 
+set -euo pipefail 
 
-# monitor-notify-unhealthy.sh
-# Envia alerta por e-mail quando algum container do Docker fica unhealthy.
-# Requisitos:
-#   - sendmail, ssmtp ou msmtp instalados no host; ou
-#   - um servidor SMTP acessível via variáveis de ambiente.
-#
-Exemplo de uso (Gmail):
-  export NOTIFY_TO="silvaamaralmateus@gmail.com"
-  export NOTIFY_FROM="silvaamaralmateus@gmail.com"
-  export SMTP_HOST="smtp.gmail.com"
-  export SMTP_PORT="587"
-  export SMTP_USER="silvaamaralmateus@gmail.com"
-  export SMTP_PASS="lzqs alxz qscv ekaa"
-  export SMTP_SECURE="true"
-  /path/to/monitor-notify-unhealthy.sh~
+# Exporta automaticamente as variáveis do arquivo .env
+set -a
+source /home/ubuntu/White-Label-planning-site-/.env
+set +a
 
 NOTIFY_TO=${NOTIFY_TO:-}
 NOTIFY_FROM=${NOTIFY_FROM:-}
