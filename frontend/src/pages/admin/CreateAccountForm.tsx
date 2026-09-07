@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Field, Modal, PasswordInput, SelectField, TextField } from '@/components/ui'
+import { Button, Field, Modal, NumberField, PasswordInput, SelectField, TextField } from '@/components/ui'
 import { api } from '@/lib/api'
+import { slugify } from '@/lib/slugify'
 import { useResourceForm } from '@/hooks/useResourceForm'
 import { PLANS } from '@/config/plans'
 import { themeRegistry } from '@/config/themes'
@@ -18,13 +19,15 @@ export function CreateAccountForm({
 }) {
   const [tenantId, setTenantId] = useState('')
   const [plan, setPlan] = useState<string>(PLANS[0].id)
+  const [amount, setAmount] = useState('')
   const [brand, setBrand] = useState<BrandFieldsValue>({
     brandMark: '',
     brandName: '',
-    brandTagline: '',
     themeId: themeRegistry[0]?.id ?? 'light',
     industry: '',
     maxUsers: '',
+    phone: '',
+    cnpj: '',
     logo: null,
   })
   const [userName, setUserName] = useState('')
@@ -40,15 +43,17 @@ export function CreateAccountForm({
         tenantId: tenantId.trim(),
         brandName: brand.brandName.trim(),
         brandMark: brand.brandMark.trim(),
-        brandTagline: brand.brandTagline.trim(),
         themeId: brand.themeId,
         logo: brand.logo,
         maxUsers: brand.maxUsers ? Number(brand.maxUsers) : null,
         industry: brand.industry || null,
+        phone: brand.phone.trim() || null,
+        cnpj: brand.cnpj.trim() || null,
         userName: userName.trim(),
         userEmail: userEmail.trim(),
         password,
         plan,
+        amount: amount.trim() === '' ? undefined : Number(amount),
       })
       onSaved()
     }, 'Não foi possível criar a conta.')
@@ -66,7 +71,7 @@ export function CreateAccountForm({
             label="Identificador (id)"
             id="acc-tenant"
             value={tenantId}
-            onChange={setTenantId}
+            onChange={(v) => setTenantId(slugify(v))}
             placeholder="ex: padaria-do-ze"
             required
             autoFocus
@@ -78,6 +83,14 @@ export function CreateAccountForm({
               </option>
             ))}
           </SelectField>
+          <NumberField
+            label="Valor cobrado (R$)"
+            id="acc-amount"
+            value={amount}
+            onChange={setAmount}
+            min={0}
+            placeholder="vazio = preco padrao"
+          />
         </div>
 
         <BrandFields value={brand} onChange={patch} industries={industries} idPrefix="acc" />

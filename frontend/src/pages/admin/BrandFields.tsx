@@ -6,10 +6,11 @@ import { LogoField } from './LogoField'
 export interface BrandFieldsValue {
   brandMark: string
   brandName: string
-  brandTagline: string
   themeId: string
   industry: string
   maxUsers: string
+  phone: string
+  cnpj: string
   logo: string | null
 }
 
@@ -58,15 +59,23 @@ export function BrandFields({
         placeholder="ex: Padaria do Zé"
         required
       />
-      <TextField
-        label="Slogan"
-        id={`${idPrefix}-tagline`}
-        value={value.brandTagline}
-        onChange={(v) => onChange({ brandTagline: v })}
-        placeholder="Uma frase curta da marca"
-        required
-      />
-
+      <div className="grid grid-cols-2 gap-3">
+        <TextField
+          label="Telefone da empresa"
+          id={`${idPrefix}-phone`}
+          value={value.phone}
+          onChange={(v) => onChange({ phone: v })}
+          placeholder="(11) 99999-0000"
+          type="tel"
+        />
+        <TextField
+          label="CNPJ"
+          id={`${idPrefix}-cnpj`}
+          value={value.cnpj}
+          onChange={(v) => onChange({ cnpj: v })}
+          placeholder="00.000.000/0000-00"
+        />
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <TextField
           label="Ramo (setor)"

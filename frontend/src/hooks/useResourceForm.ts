@@ -17,7 +17,17 @@ export function useResourceForm() {
     try {
       await action()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : fallback)
+      if (err instanceof ApiError) {
+        const details = err.issues
+          .map((issue) => {
+            const field = issue.path.length > 0 ? ` (${issue.path.join('.')})` : ''
+            return `${issue.message}${field}`
+          })
+          .join(' ')
+        setError(details ? `${err.message}: ${details}` : err.message)
+      } else {
+        setError(fallback)
+      }
       setBusy(false)
     }
   }

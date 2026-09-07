@@ -8,7 +8,7 @@ export function AboutSection() {
       <div className="mx-auto max-w-5xl">
         <div className="mx-auto max-w-2xl text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-accent">
-            <Sparkles size={12} /> Plataforma whitelabel
+            <Sparkles size={12} /> Working out
           </span>
           <h2 className="mt-5 text-balance text-3xl font-bold leading-tight text-ink sm:text-4xl">
             Uma plataforma, moldada para o seu negócio

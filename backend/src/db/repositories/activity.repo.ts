@@ -21,6 +21,15 @@ export async function getActivity(tenantId: string): Promise<ActivityEvent[]> {
       `select id, type, title, customer, amount::float8 as amount, occurred_at
          from app.activity_events
         where tenant_id = $1
+       union all
+       select 'sale-' || s.id::text as id,
+              'sale'::app.activity_type as type,
+              'Venda: ' || s.description as title,
+              s.buyer_email::text as customer,
+              (s.unit_price * s.quantity)::float8 as amount,
+              s.created_at as occurred_at
+         from app.sales s
+        where s.tenant_id = $1
         order by occurred_at desc`,
       [tenantId],
     )

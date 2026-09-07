@@ -290,3 +290,36 @@ update app.users set is_platform_admin = false where email = 'fulano@empresa.com
 
 Para o "porquê" de cada peça, veja `backend/README.md`, `backend/db/README.md`,
 `backend/GUIA.md` e `frontend/ARCHITECTURE.md` / `frontend/GUIA.md`.
+
+## Backup diário do PostgreSQL
+
+O `docker-compose.yml` inclui o serviço `backup`. Ele cria imediatamente um
+dump compactado por dia em `./backups/`, valida o arquivo com `pg_restore` e
+mantém 30 dias por padrão. O serviço reinicia junto com a aplicação e tenta
+novamente a cada 60 segundos se o banco ainda estiver sendo inicializado.
+
+```bash
+mkdir -p backups
+docker compose up -d backup
+docker compose logs -f backup
+ls -lh backups
+```
+
+O comportamento pode ser ajustado no `.env`:
+
+```env
+BACKUP_RETENTION_DAYS=30
+BACKUP_INTERVAL_SECONDS=86400
+```
+
+Na Oracle VM, `./backups` fica no disco da própria VM. Isso protege contra
+falha lógica ou exclusão acidental, mas não contra perda da instância/disco.
+Para proteção contra desastre, copie os arquivos para OCI Object Storage ou
+outro armazenamento externo e teste periodicamente a restauração:
+
+```bash
+docker compose exec -T backup pg_restore --list /backups/whitelabel-AAAAMMDD.dump
+```
+
+Não exponha PostgreSQL na internet. O serviço de backup usa a senha do usuário
+Postgres apenas dentro da rede Docker e não altera o papel `whitelabel_app`.

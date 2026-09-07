@@ -1,286 +1,154 @@
-# Banco de dados (PostgreSQL)
+# Banco de dados — Plataforma Whitelabel
 
-Camada de persistência da plataforma whitelabel. Materializa no banco o modelo
-que hoje vive em `src/types/index.ts` e nos mocks de `src/data/*.ts`, com o
-isolamento por tenant deixando de ser uma convenção do código e passando a ser
-**imposto pelo próprio banco**.
+Este diretório contém o código do PostgreSQL usado pela plataforma: migrations, documentação de segurança e artefatos do diagrama ER. A API não usa mocks em memória; seus repositórios acessam o schema `app` através do PostgreSQL.
 
-> As migrations são só o **código** do banco. Nada aqui cria/roda um servidor —
-> aplique quando quiser (seção "Como aplicar").
+Documentação relacionada:
 
-## Arquivos
-
-| Arquivo                                                 | O que faz                                                                                                                                                                                                                                                                                                                                             |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `migrations/0001_schema.sql`                          | Schema`app`, tipos enum, tabelas, índices, gatilhos, funções (`current_tenant`, `find_user_for_auth`).                                                                                                                                                                                                                                       |
-| `migrations/0002_security.sql`                        | Role`whitelabel_app` (menor privilégio), grants, **RLS** por tenant, limites de recurso.                                                                                                                                                                                                                                                     |
-| `migrations/0003_seed.sql`                            | Dados de demonstração idênticos aos mocks (opcional).                                                                                                                                                                                                                                                                                              |
-| `migrations/0004_sales_expenses.sql`                  | Custo/tipo (`produto`/`servico`) nos produtos, tabelas `sales` e `expenses` (com RLS/grants) — base dos relatórios calculados.                                                                                                                                                                                                              |
-| `migrations/0005_customer_responsible_sale_email.sql` | Colunas opcionais`customers.responsible` e `sales.buyer_email`.                                                                                                                                                                                                                                                                                   |
-| `migrations/0006_billing_admin.sql`                   | Assinatura por tenant (`tenants.paid_until`/`plan`), administrador de plataforma (`users.is_platform_admin`), funções `SECURITY DEFINER` `admin_*` e seed do admin.                                                                                                                                                                       |
-| `migrations/0007_fix_find_user_for_auth.sql`          | Recria`find_user_for_auth` (a 0006 falhava ao alterar o retorno via CREATE OR REPLACE) e corrige os acentos do tenant `platform`. Necessária para bancos que aplicaram a 0006 antes desta correção.                                                                                                                                            |
-| `migrations/0008_brand_logo.sql`                      | Logo por conta (`tenants.brand_logo`, data URI), função `admin_update_account` (editar marca) e `admin_create_account`/`admin_list_accounts` recriadas com a logo.                                                                                                                                                                          |
-| `migrations/0009_admin_list_users.sql`                | Função`admin_list_users` para o painel listar os logins de cada conta.                                                                                                                                                                                                                                                                            |
-| `migrations/0010_calendars.sql`                       | Múltiplas agendas por conta (`app.calendars`, compartilhadas ou privadas) + `calendar_events.calendar_id`; visibilidade privada por usuário.                                                                                                                                                                                                    |
-| `migrations/0011_tenant_admin_seats.sql`              | Admin do tenant (`users.is_tenant_admin`) para gerenciar os logins da conta + limite de usuários (`tenants.max_users`). Recria `find_user_for_auth`/`admin_*`.                                                                                                                                                                               |
-| `migrations/0012_admin_set_tenant_admin.sql`          | Função`admin_set_tenant_admin` (o admin de plataforma promove/rebaixa o admin de cada conta) e `admin_list_users` passa a devolver `is_tenant_admin`.                                                                                                                                                                                         |
-| `migrations/0013_platform_billing.sql`                | Financeiro da plataforma: ledger de cobranças (`app.billing_events`, valor snapshot) + custos mensais (`app.platform_expenses`) e funções `SECURITY DEFINER` (`admin_record_billing_event`, `admin_revenue_by_month`/`_by_tenant`, `admin_*_platform_expense`). Base do painel financeiro do admin (receita, lucro, inadimplência). |
-| `migrations/0014_perf_indexes.sql`                    | Índice na FK`calendars.owner_user_id` (evita seq scan ao apagar usuário / filtrar agenda privada).                                                                                                                                                                                                                                                |
-| `migrations/0015_temporal_timestamps.sql`             | Tempo real (`occurred_at timestamptz`) no lugar dos rótulos estáticos (`*_label`) em `activity_events`/`notifications`/`support_tickets`; `news` passa a derivar a data de `created_at`. Ordenação por tempo (índices `*_tenant_time_idx`) e rótulos calculados na leitura (backend), sem congelar.                             |
-| `migrations/0016_tenant_industry.sql`                 | Ramo (setor) por conta (`tenants.industry`). Funções `admin_*` (create/update/list) recriadas para conhecê-lo. Base da distribuição "quais ramos mais usam" no painel financeiro.                                                                                                                                                            |
-| `migrations/0017_industry_freeform.sql`               | Ramo vira**texto livre** (sem lista fixa a sincronizar): o /admin sugere os ramos já usados por outras contas (`distinct`). Sem mudança de schema — só normaliza os valores demo da 0016.                                                                                                                                                 |
-| `migrations/0018_slim_find_user_for_auth.sql`         | Enxuga`find_user_for_auth`: sai `paid_until`/`plan` do retorno (e o JOIN a `tenants`), que não são mais usados no login — a assinatura é relida por requisição em `getCurrentUser`.                                                                                                                                                   |
-| `migrations/0019_verify_credentials.sql`              | **Verificação de senha no banco.** Troca `find_user_for_auth` (que devolvia o `password_hash`) por `app.verify_credentials(email, senha)`, que compara com `crypt()` e devolve o usuário **sem** hash (timing-safe). Remove a função antiga e tira o `SELECT` da coluna `password_hash` da role da app.                  |
+- [Backend README](../README.md): processo da API, rotas e ambiente.
+- [DEPLOY.md](../../DEPLOY.md): Docker e operação de produção.
+- [ER whitelabel.png](ER%20whitelabel.png): diagrama visual atual disponível no repositório.
 
 ## Modelo de segurança
 
-O pedido central: **impedir ataques ao banco, principalmente vindos do frontend.**
-O front nunca fala com o banco — fala com a API — então "chamadas do frontend"
-significa: nenhuma entrada que chega pela API pode injetar SQL nem cruzar a
-fronteira entre tenants. Defesa em camadas:
+O modelo tem quatro camadas:
 
-1. **Isolamento por tenant via RLS.** Toda tabela de negócio tem `tenant_id` e
-   uma política `USING (tenant_id = app.current_tenant())`. A aplicação declara
-   o tenant por transação com `SET LOCAL app.current_tenant = <tenantId do JWT>`
-   (ver `src/db/tenant-context.ts`). Uma query que esqueça o `WHERE tenant_id`
-   **não vaza** outro tenant — o banco recusa as linhas fora do contexto. E o
-   tenant vem sempre do **JWT assinado**, nunca de um campo escolhido pelo
-   cliente.
-2. **Role da aplicação sem privilégios.** A API conecta como `whitelabel_app`:
-   `NOSUPERUSER`, `NOBYPASSRLS`, sem DDL, só `SELECT/INSERT/UPDATE/DELETE` no
-   schema `app`. Mesmo uma injeção bem-sucedida esbarra no que a role não pode
-   fazer (sem `DROP`, sem ler o `public`, sem criar objetos). `NOBYPASSRLS` é o
-   que garante que o RLS **sempre** se aplique a ela.
-3. **Consultas 100% parametrizadas.** `withTenant` e os repositórios só aceitam
-   query com placeholders (`$1, $2, ...`); nenhuma entrada do usuário é
-   concatenada em texto SQL. Até o `tenantId` do `SET` vai como parâmetro.
-4. **Validação no banco (defesa em profundidade).** Tipos `enum` para tons,
-   categorias e `icon_key`; `CHECK` para valores monetários não-negativos e para
-   cores em formato hex. Mesmo que algo escape do `zod` na borda da API, o banco
-   rejeita.
-5. **Limites de recurso.** `statement_timeout` e
-   `idle_in_transaction_session_timeout` na role cortam consultas caras e
-   transações penduradas (mitiga DoS). O pool (`src/db/pool.ts`) limita conexões.
+1. **JWT define o tenant.** O `tenantId` é obtido do token assinado; o cliente não escolhe o tenant por corpo ou query string.
+2. **Transação com contexto.** `backend/src/db/tenant-context.ts` abre a transação e executa `set_config('app.current_tenant', ..., true)`, equivalente a `SET LOCAL`.
+3. **RLS isola linhas.** As tabelas de negócio filtram `tenant_id` com `app.current_tenant()`.
+4. **Role de menor privilégio.** A API conecta como `whitelabel_app`, com `NOBYPASSRLS` e sem DDL. O dono do banco aplica migrations e executa tarefas administrativas.
 
-### Por que não `FORCE ROW LEVEL SECURITY`?
+As consultas dos repositórios são parametrizadas. As funções `SECURITY DEFINER` estreitas são usadas para autenticação e operações do administrador de plataforma que precisam atravessar tenants.
 
-A role da aplicação não é dona das tabelas e não tem `BYPASSRLS`, então o RLS já
-se aplica a ela em runtime. Deixamos o RLS sem `FORCE` para que a função
-`SECURITY DEFINER` de autenticação (`verify_credentials`, que roda como o dono)
-consiga achar o usuário por e-mail **antes** de existir um contexto de tenant —
-o login precede a descoberta do tenant. Em produção a API nunca conecta como o
-dono.
+### Autenticação de senha
 
-## Como aplicar
+A migration `0019_verify_credentials.sql` introduziu `app.verify_credentials(email, senha)`. A comparação acontece dentro do banco e devolve apenas o usuário público; o hash não deve sair do PostgreSQL e a role da aplicação não deve selecionar `password_hash` diretamente.
 
-Rode as migrations como o **dono do banco** (não como `whitelabel_app`):
+## Migrations atuais
+
+O conjunto atual é o conteúdo de `backend/db/migrations/*.sql` na raiz dessa pasta. A pasta `old migrations/` é histórica e não deve ser incluída automaticamente.
+
+| Arquivo | Responsabilidade |
+| --- | --- |
+| `0000_migrationtest.sql` | Arquivo vazio de teste/histórico; não altera o schema. |
+| `0001_schema.sql` | Cria schema `app`, extensões, enums, tabelas, índices, triggers e funções base. |
+| `0002_security.sql` | Cria a role `whitelabel_app`, grants, RLS, funções de contexto e limites de recurso. |
+| `0004_sales_expenses.sql` | Adiciona tipo/custo de produto, vendas e despesas. |
+| `0005_customer_responsible_sale_email.sql` | Adiciona responsável opcional de cliente e e-mail opcional da venda. |
+| `0006_billing_admin.sql` | Adiciona billing por tenant, admin de plataforma e funções administrativas iniciais. |
+| `0007_fix_find_user_for_auth.sql` | Corrige a função de autenticação criada na migration anterior. |
+| `0008_brand_logo.sql` | Adiciona logo da conta e atualiza funções administrativas de conta. |
+| `0009_admin_list_users.sql` | Adiciona listagem de logins de uma conta no painel admin. |
+| `0010_calendars.sql` | Adiciona múltiplas agendas, eventos e visibilidade de agendas privadas. |
+| `0011_tenant_admin_seats.sql` | Adiciona admin do tenant e limite de logins por conta. |
+| `0012_admin_set_tenant_admin.sql` | Permite ao admin de plataforma promover/rebaixar admin do tenant. |
+| `0013_platform_billing.sql` | Adiciona ledger de cobranças, despesas da plataforma e analytics financeiro. |
+| `0014_perf_indexes.sql` | Adiciona índice para a FK de dono da agenda. |
+| `0015_temporal_timestamps.sql` | Troca rótulos temporais estáticos por timestamps reais e índices de tempo. |
+| `0016_tenant_industry.sql` | Adiciona ramo/setor ao tenant e às funções administrativas. |
+| `0017_industry_freeform.sql` | Torna o ramo texto livre e normaliza os dados existentes. |
+| `0018_slim_find_user_for_auth.sql` | Remove dados de billing desnecessários do retorno antigo de autenticação. |
+| `0019_verify_credentials.sql` | Move a verificação de senha para o banco e remove a leitura do hash pela role da aplicação. |
+| `0020_drop_brand_tagline.sql` | Remove `brand_tagline` de tenants e das funções de criação/edição de contas. |
+| `0021_default_dashboard.sql` | Cria o dashboard padrão de novos tenants, corrige tenants sem dados e centraliza os cards/tarefas iniciais em `app.ensure_default_dashboard`. |
+| `0022_tenant_contact_identity.sql` | Adiciona telefone e CNPJ da empresa em `app.tenants` e atualiza as funções administrativas. |
+
+### Sobre o antigo `0003_seed.sql`
+
+`0003_seed.sql` não está mais na pasta atual. Dados de demonstração e contas de teste agora são inseridos por [`backend/scripts/bootstrap.js`](../scripts/bootstrap.js), executado pelo serviço `seeder` no Docker Compose. Não recrie ou aplique um `0003` histórico sem verificar o estado real do banco.
+
+## Dashboard padrão de uma conta
+
+A criação de uma conta chama `app.admin_create_account`, que habilita o módulo `dashboard` e chama `app.ensure_default_dashboard`. A função é idempotente: se o tenant já possui cards ou tarefas, não substitui os dados existentes.
+
+O padrão inicial contém quatro cards em `app.dashboard_stats` e três tarefas em `app.dashboard_tasks`. A migration `0021` também percorre os tenants existentes, exceto o tenant técnico `platform`, e preenche o dashboard somente quando as tabelas estão vazias.
+
+Para mudar o padrão para novas contas, crie uma migration posterior e altere `app.ensure_default_dashboard`. Para personalizar um único cliente, altere apenas as linhas daquele `tenant_id` por uma operação administrativa controlada ou implemente uma tela/endpoint administrativo específico. Não edite uma migration aplicada e não coloque uma necessidade individual dentro do padrão global.
+
+## Aplicação manual
+
+A criação do banco e a aplicação de migrations devem ocorrer como dono do PostgreSQL. A aplicação depois deve usar `whitelabel_app`.
+
+Exemplo a partir da pasta `backend/` em ambiente Unix:
 
 ```bash
 createdb whitelabel
 
-psql -d whitelabel -f db/migrations/0001_schema.sql
-psql -d whitelabel -f db/migrations/0002_security.sql
-psql -d whitelabel -f db/migrations/0003_seed.sql   # opcional (dados de demo)
-psql -d whitelabel -f db/migrations/0004_sales_expenses.sql
-psql -d whitelabel -f db/migrations/0005_customer_responsible_sale_email.sql
-psql -d whitelabel -f db/migrations/0006_billing_admin.sql
-psql -d whitelabel -f db/migrations/0007_fix_find_user_for_auth.sql
-psql -d whitelabel -f db/migrations/0008_brand_logo.sql
-psql -d whitelabel -f db/migrations/0009_admin_list_users.sql
-psql -d whitelabel -f db/migrations/0010_calendars.sql
-psql -d whitelabel -f db/migrations/0011_tenant_admin_seats.sql
-psql -d whitelabel -f db/migrations/0012_admin_set_tenant_admin.sql
-psql -d whitelabel -f db/migrations/0013_platform_billing.sql
-psql -d whitelabel -f db/migrations/0014_perf_indexes.sql
-psql -d whitelabel -f db/migrations/0015_temporal_timestamps.sql
-psql -d whitelabel -f db/migrations/0016_tenant_industry.sql
-psql -d whitelabel -f db/migrations/0017_industry_freeform.sql
-psql -d whitelabel -f db/migrations/0018_slim_find_user_for_auth.sql
-psql -d whitelabel -f db/migrations/0019_verify_credentials.sql
+for file in db/migrations/*.sql; do
+  echo "Aplicando $file"
+  psql -U postgres -d whitelabel -f "$file" || exit 1
+done
 ```
 
-Depois, no `0002`, troque a senha placeholder da role por um segredo forte e
-aponte `DATABASE_URL` (no `.env`) para a role `whitelabel_app`.
+No PowerShell:
 
-Credenciais de teste do seed (iguais às de `src/data/users.ts`):
-
-```
-admin@acme.com     / senha123   (tenant: acme)
-maria@clinica.com  / senha123   (tenant: clinica)
-```
-
-## Integração com a API (concluída)
-
-A API não usa mais mocks — os antigos `src/data/*.ts` foram removidos e todas as
-rotas leem do PostgreSQL. As peças:
-
-- `src/db/pool.ts` — pool `pg` conectando como `whitelabel_app`.
-- `src/db/tenant-context.ts` — `withTenant(tenantId, fn)`: abre a transação, seta
-  `app.current_tenant` e entrega uma função de query parametrizada.
-- `src/db/repositories/users.repo.ts` — autenticação (via `verify_credentials`, que
-  compara a senha no banco e nunca devolve o hash).
-- `src/db/repositories/*.repo.ts` — um repositório por domínio (tenants, news,
-  activity, notifications, products, customers, calendar, reports, dashboard,
-  support), com as mesmas assinaturas que as rotas já consumiam.
-
-Nas rotas de dados, o `tenantId` vem de `req.auth!.tenantId` (o JWT) — é ele que
-alimenta o `withTenant`, fechando o ciclo: token → contexto → RLS. A API exige
-`DATABASE_URL` no boot (falha rápida se ausente).
-
-### Como subir (local)
-
-```bash
-# 1. criar o banco e aplicar as migrations (como dono do banco)
+```powershell
 createdb whitelabel
-psql -d whitelabel -f db/migrations/0001_schema.sql
-psql -d whitelabel -f db/migrations/0002_security.sql
-psql -d whitelabel -f db/migrations/0003_seed.sql   # opcional (dados de demo)
-psql -d whitelabel -f db/migrations/0004_sales_expenses.sql
-psql -d whitelabel -f db/migrations/0005_customer_responsible_sale_email.sql
-psql -d whitelabel -f db/migrations/0006_billing_admin.sql
-psql -d whitelabel -f db/migrations/0007_fix_find_user_for_auth.sql
-psql -d whitelabel -f db/migrations/0008_brand_logo.sql
-psql -d whitelabel -f db/migrations/0009_admin_list_users.sql
-psql -d whitelabel -f db/migrations/0010_calendars.sql
-psql -d whitelabel -f db/migrations/0011_tenant_admin_seats.sql
-psql -d whitelabel -f db/migrations/0012_admin_set_tenant_admin.sql
-psql -d whitelabel -f db/migrations/0013_platform_billing.sql
-psql -d whitelabel -f db/migrations/0014_perf_indexes.sql
-psql -d whitelabel -f db/migrations/0015_temporal_timestamps.sql
-psql -d whitelabel -f db/migrations/0016_tenant_industry.sql
-psql -d whitelabel -f db/migrations/0017_industry_freeform.sql
-psql -d whitelabel -f db/migrations/0018_slim_find_user_for_auth.sql
-psql -d whitelabel -f db/migrations/0019_verify_credentials.sql
 
-Ou
-
-Get-ChildItem "db\migrations\*.sql" | Where-Object { $_.Name -ge "0009" } | ForEach-Object {
-    Write-Host "Aplicando: $($_.Name)..." -ForegroundColor Cyan
-    & "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -d whitelabel -f $_.FullName
+Get-ChildItem .\db\migrations\*.sql | Sort-Object Name | ForEach-Object {
+  Write-Host "Aplicando $($_.Name)..."
+  & psql -U postgres -d whitelabel -f $_.FullName
+  if ($LASTEXITCODE -ne 0) { throw "Falha em $($_.Name)" }
 }
-# 2. apontar DATABASE_URL (no .env) para a role whitelabel_app e subir a API
-npm install
-npm run dev
 ```
 
-## Assinatura por tenant e administrador de plataforma (0006)
+Depois:
 
-Duas capacidades adicionadas em `0006_billing_admin.sql`, mantendo o modelo de
-segurança (menor privilégio + RLS + funções `SECURITY DEFINER` estreitas):
+1. Troque a senha placeholder da role `whitelabel_app` por um segredo forte.
+2. Configure `DATABASE_URL` do backend com essa role, não com `postgres`.
+3. Configure os demais valores do backend e inicie a API.
+4. Se dados de demonstração forem necessários, execute o bootstrap com `ADMIN_TEMP_PASSWORD` definido e uma conexão temporária com privilégios suficientes.
 
-### Assinatura ("pago esse mês")
+Não coloque senhas, hashes, JWT secrets ou URLs com credenciais neste README ou no Git.
 
-- Cada tenant tem `paid_until timestamptz`. O acesso é **derivado**: enquanto
-  `paid_until >= now()` a conta está ativa; ao passar do prazo ela **expira
-  sozinha** — sem job/cron. Creditar 6 ou 12 meses só estende a data (soma sobre
-  o saldo restante).
-- A API bloqueia o acesso aos dados com **HTTP 402** quando a assinatura expira
-  (`middleware/subscription.ts`), exceto para o administrador de plataforma. O
-  `GET /api/config` fica de fora do bloqueio de propósito, para o frontend ler o
-  `billing` e mostrar a tela de renovação. O sino injeta um aviso automático
-  quando faltam ≤7 dias (`repositories/notifications.repo.ts`).
+## Docker Compose
 
-### Administrador de plataforma
+O fluxo de [docker-compose.yml](../../docker-compose.yml) é:
 
-- Usuário com `is_platform_admin = true`. Como não há pagamento automático, ele
-  **provisiona contas manualmente**: cria tenant + primeiro login, adiciona
-  logins a um tenant existente e credita meses (rotas `/api/admin/*`, atrás de
-  `requireAdmin`).
-- **Dupla proteção**: o backend exige o flag `isPlatformAdmin` (assinado no JWT
-  pelo servidor a partir do banco, logo não forjável) **e** cada função
-  `app.admin_*` revalida `is_platform_admin(actor_id)` antes de qualquer escrita
-  (SQLSTATE 42501 se não for admin). O hash da senha é gerado no backend
-  (bcrypt custo 12); o banco nunca vê a senha em claro.
-
-### ⚠️ Troque a senha do admin (placeholder do seed)
-
-O seed cria o admin `silvaamaralmateus@gmail.com` (tenant técnico `platform`) com
-uma senha **placeholder** que DEVE ser trocada antes de qualquer uso real:
-
-```sql
--- rode como o DONO do banco
--- IMPORTANTE: qualifique com `public.` — o pgcrypto vive no schema `public`
--- (0001), mas o search_path da role da app e das funções não o inclui, então
--- `crypt`/`gen_salt` sem qualificar dão "função não existe".
-update app.users
-   set password_hash = public.crypt('SUA-SENHA-FORTE', public.gen_salt('bf', 12))
- where email = 'silvaamaralmateus@gmail.com';
+```text
+db → migrator → seeder
+             ↘ backend → frontend/nginx
 ```
 
-Também funciona pela role `whitelabel_app` (ela mantém `UPDATE` em `app.users`; o
-0019 revogou só o `SELECT` da coluna `password_hash`). Nesse caso, ative o
-contexto de tenant antes — a role tem `NOBYPASSRLS`, então o RLS esconde a linha
-sem ele:
+- `db` executa PostgreSQL e mantém o volume `pgdata`.
+- `migrator` cria o banco `whitelabel` se necessário e aplica todos os `*.sql` montados em `/migrations` em ordem lexical.
+- `seeder` executa `backend/scripts/bootstrap.js` com a conexão temporária do superusuário e `ADMIN_TEMP_PASSWORD`.
+- `backend` conecta com `whitelabel_app` e expõe a API na porta `4000` dentro da rede Docker.
+- `frontend` serve a SPA pelo nginx e encaminha `/api/` para o backend.
 
-```sql
-begin;
-set local app.current_tenant = 'platform';  -- tenant do usuário alvo
-update app.users
-   set password_hash = public.crypt('SUA-SENHA-FORTE', public.gen_salt('bf', 12))
- where email = 'silvaamaralmateus@gmail.com';
-commit;
-```
+O migrator atual reaplica todos os arquivos da pasta em cada execução. Use esse fluxo principalmente para um banco novo; em um volume existente, confira quais migrations já foram aplicadas antes de executar uma migration nova manualmente. Nunca use a role da aplicação para aplicar DDL.
 
-Para promover outro usuário a admin (ou revogar):
+## Principais entidades
 
-```sql
-update app.users set is_platform_admin = true  where email = 'fulano@empresa.com';
-update app.users set is_platform_admin = false where email = 'fulano@empresa.com';
-```
+O schema `app` concentra:
 
-## Dívidas técnicas / TODO (escala, segurança e custo)
+- `tenants`, `users` e `modules`: identidade, logins, branding, billing e configuração de módulos.
+- `products`, `customers`, `sales` e `expenses`: operação comercial.
+- `calendars` e `calendar_events`: agendas e compromissos.
+- `dashboard_stats`, `dashboard_tasks`, `activity_events`, `notifications`, `news` e `support_tickets`: painel, feeds e suporte.
+- `billing_events` e `platform_expenses`: financeiro do administrador de plataforma.
 
-Revisão do banco com foco em escalabilidade, segurança e baixo custo. Os itens
-concretos e de baixo risco já foram aplicados; o restante fica registrado aqui
-como próximo passo — nenhum é bloqueante hoje.
+O contrato público usado pelo frontend não é duplicado no banco: os tipos da API ficam em `backend/src/types/` e são importados pelo frontend via alias `@contracts`.
 
-### ✅ Feitos
+## Regras para mudanças
 
-- **Filtro de período indexável (relatórios).** `reports.repo.ts` filtrava por
-  `to_char(sold_at,'YYYY-MM') between ...`, o que envolvia a coluna numa função e
-  impedia o índice `sales_tenant_idx (tenant_id, sold_at)` de podar o período —
-  cada relatório varria todas as vendas do tenant. Agora usa bounds de data reais
-  (`sold_at >= $lo AND sold_at < $hi`), com range scan no índice. Mesmo tratamento
-  em `expenses.ref_month`.
-- **Dinheiro somado em `NUMERIC` (relatórios).** As agregações não são mais
-  convertidas para `float8` dentro do SQL; a soma é exata em `numeric` e a
-  conversão para número acontece uma única vez na borda (helper `money()`,
-  arredondado a centavos).
-- **Índice na FK `calendars.owner_user_id`** (`0014_perf_indexes.sql`) — evita
-  sequential scan ao apagar um usuário (cascade) e ao filtrar agenda privada.
-- **[Escala] Tempo real no lugar de rótulos estáticos** (`0015_temporal_timestamps.sql`).
-  `activity_events`, `notifications` e `support_tickets` guardavam o tempo como texto
-  de exibição ("há 5 min") ordenado por `sort_order` — o que **congelava** o tempo e
-  bloqueava ordenação/analytics por tempo real. Agora têm `occurred_at timestamptz`
-  (com índice `*_tenant_time_idx`), ordenam por ele e o backend **calcula o rótulo na
-  leitura** (`src/lib/relative-time.ts`), então não congela mais. `news` passou a
-  derivar a data de `created_at`. O **contrato da API não mudou** (segue mandando
-  string em `time`/`date`); só a origem virou um instante real. Fuso fixado em BRT no
-  formatador (independe do fuso do servidor).
-- **[Infra/custo] Pronto para pooler / escala horizontal.** O contexto de tenant
-  usa `SET LOCAL` (transaction-scoped), então o design já é compatível com
-  **PgBouncer em modo transaction** — dá para colocá-lo na frente sem reescrever
-  nada. O tamanho do pool por instância virou ajustável por ambiente
-  (`DB_POOL_MAX`, ver `src/db/pool.ts` e `.env.example`) para controlar N
-  instâncias × max no Postgres. Só falta a etapa **operacional** (subir o
-  PgBouncer) quando escalar — não há mais nada a mudar no código.
-- **[Segurança] Hash de senha nunca sai do banco (`0019_verify_credentials.sql`).**
-  Antes, `find_user_for_auth` (SECURITY DEFINER, não escopável por tenant — o login
-  precede o tenant) DEVOLVIA o `password_hash` para o Node comparar; quem tivesse a
-  role da app (ou um SQLi) podia puxar o hash de **qualquer** usuário. Agora a
-  comparação acontece **no banco**: `app.verify_credentials(email, senha)` usa
-  `crypt()` e devolve só o usuário público (sem hash), rodando um `crypt()` mesmo em
-  e-mail inexistente para não vazar existência por tempo (timing-safe). A função
-  antiga foi removida e a role da app perdeu o `SELECT` da coluna `password_hash` —
-  então nem função, nem SELECT direto, nem SQLi no contexto da app lê o hash. O
-  hashing na criação segue no Node (bcryptjs custo 12; formato `$2` compatível com
-  `crypt()`, sem reprocessar). O rate-limit por IP (2026-07-12) continua como camada
-  adicional contra brute force.
+- Migrations aplicadas são histórico imutável. Para qualquer alteração, crie o próximo arquivo numerado.
+- Aplique a migration antes de publicar o backend que depende dela.
+- Atualize o repositório e os tipos compartilhados quando mudar tabela, função ou retorno.
+- Verifique RLS, grants, constraints, índices e funções `SECURITY DEFINER` em mudanças de schema.
+- Não conceda à role `whitelabel_app` privilégios de dono, `BYPASSRLS` ou DDL.
+- Após mudar `backend/src/types/`, faça build do backend e do frontend.
 
-### ⏳ Pendentes
+## Diagnóstico
 
-- **[Custo/tamanho] PKs `text` com UUID vs `uuid` nativo.** Chaves como
-  `gen_random_uuid()::text` ocupam ~37 bytes contra 16 do tipo `uuid`, deixando
-  índices e FKs maiores. Foi escolha consciente (o contrato da API devolve
-  string). Reavaliar só se o volume crescer muito; exige migração de tipo +
-  ajuste do serializador.
+| Sintoma | Primeiras verificações |
+| --- | --- |
+| API não inicia | `DATABASE_URL`, PostgreSQL acessível e migrations `0001`/`0002` aplicadas. |
+| Login retorna erro 500 | `0019_verify_credentials.sql`, função `app.verify_credentials` e permissões da role da aplicação. |
+| Tenant não vê dados | JWT, `tenant-context.ts`, `app.current_tenant` e políticas RLS. |
+| Logo ou conta não salva | Limite de body de `/api/admin`, migration `0008`, função administrativa e payload validado. |
+| Assinatura bloqueia o painel | `paid_until`, `getCurrentUser`, `GET /api/config` e middleware de subscription. |
+| Migration não encontrada | Confirme que o arquivo está em `backend/db/migrations/` e não apenas em `old migrations/`. |
+
+## Artefatos ER
+
+`ER whitelabel.png` é uma visualização do modelo e `ER whitelabel.pgerd` é o arquivo-fonte do diagrama. O SQL das migrations continua sendo a fonte de verdade; atualize o diagrama quando o schema mudar, mas não use a imagem para aplicar alterações.

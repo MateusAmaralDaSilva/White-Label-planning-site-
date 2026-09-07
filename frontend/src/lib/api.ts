@@ -10,6 +10,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public issues: Array<{ path: Array<string | number>; message: string }> = [],
   ) {
     super(message)
     this.name = 'ApiError'
@@ -51,11 +52,19 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   }
 
   if (!res.ok) {
-    const message = await res
+    const body = await res
       .json()
-      .then((d) => (d as { error?: string }).error)
+      .then((d) => d as {
+        error?: string
+        issues?: Array<{ path?: Array<string | number>; message?: string }>
+      })
       .catch(() => undefined)
-    throw new ApiError(res.status, message ?? `Erro ${res.status}`)
+    const issues = (body?.issues ?? [])
+      .filter((issue): issue is { path: Array<string | number>; message: string } =>
+        Array.isArray(issue.path) && typeof issue.message === 'string',
+      )
+      .map((issue) => ({ path: issue.path, message: issue.message }))
+    throw new ApiError(res.status, body?.error ?? `Erro ${res.status}`, issues)
   }
 
   if (res.status === 204) return undefined as T

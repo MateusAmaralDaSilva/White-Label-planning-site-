@@ -12,15 +12,15 @@ inteira é trocável por tokens de tema.
 
 ## 1. Stack
 
-| Camada        | Tecnologia            | Por quê                                              |
-| ------------- | --------------------- | ---------------------------------------------------- |
-| Build / dev   | **Vite**              | Dev server rápido, HMR instantâneo                   |
-| UI            | **React 18 + TypeScript** | Componentes tipados                              |
-| Estilo        | **Tailwind CSS**      | Tokens de design → tema whitelabel trocável          |
-| Estado        | **Zustand** (+ persist) | Store global simples, sem boilerplate              |
-| Rotas         | **React Router 6**    | Rotas geradas dinamicamente a partir dos módulos     |
-| Drag & drop   | **@dnd-kit**          | Reordenar módulos no gerenciador                     |
-| Ícones        | **lucide-react**      | Ícones SVG consistentes                              |
+| Camada      | Tecnologia                      | Por quê                                          |
+| ----------- | ------------------------------- | ------------------------------------------------- |
+| Build / dev | **Vite**                  | Dev server rápido, HMR instantâneo              |
+| UI          | **React 18 + TypeScript** | Componentes tipados                               |
+| Estilo      | **Tailwind CSS**          | Tokens de design → tema whitelabel trocável     |
+| Estado      | **Zustand** (+ persist)   | Store global simples, sem boilerplate             |
+| Rotas       | **React Router 6**        | Rotas geradas dinamicamente a partir dos módulos |
+| Drag & drop | **@dnd-kit**              | Reordenar módulos no gerenciador                 |
+| Ícones     | **lucide-react**          | Ícones SVG consistentes                          |
 
 ---
 
@@ -204,6 +204,7 @@ pela Sidebar e pelo roteamento.
 ## 5. Estado global (Zustand)
 
 ### `appStore.ts`
+
 - `modules` — estado atual dos módulos (registry + config do tenant)
 - `applyServerConfig(configs)` — no bootstrap, faz o *merge* da config do backend
   (enabled/order) sobre o registry (componentes/ícones/defaults)
@@ -216,6 +217,7 @@ pela Sidebar e pelo roteamento.
   carregamento.
 
 ### `authStore.ts`
+
 - `isAuthenticated`, `token`, `user`, `userEmail`
 - `login()` faz `POST /api/auth/login` e guarda o JWT (persistido); `logout()`
   limpa a sessão. O token é anexado a cada request por `lib/api.ts` (ver §8.3.C).
@@ -309,11 +311,11 @@ automaticamente e nenhum componente precisa mudar — todos leem os tokens semâ
 
 ### 8.1 O que é customizável hoje
 
-| O quê | Arquivo | O que editar |
-| ----- | ------- | ------------ |
-| Nome, sigla, tagline | `src/config/brand.ts` | `name`, `mark`, `tagline` |
-| Paleta de cores | `src/config/themes/` | valores dos tokens de cada tema (um arquivo por tema) |
-| Módulos disponíveis e padrão | `src/modules/registry.ts` | `enabled`, `order`, quais entradas existem |
+| O quê                          | Arquivo                     | O que editar                                          |
+| ------------------------------- | --------------------------- | ----------------------------------------------------- |
+| Nome, sigla, tagline            | `src/config/brand.ts`     | `name`, `mark`, `tagline`                       |
+| Paleta de cores                 | `src/config/themes/`      | valores dos tokens de cada tema (um arquivo por tema) |
+| Módulos disponíveis e padrão | `src/modules/registry.ts` | `enabled`, `order`, quais entradas existem        |
 
 Esses três arquivos são os únicos que você precisa mudar para re-skin completo de um tenant.
 
@@ -365,21 +367,21 @@ renderizar. Escala para dezenas de clientes sem builds separados.
 Esta é a estratégia em uso. O backend (`../backend`) retorna a configuração do
 tenant após o login e serve os dados de cada tela. A fiação:
 
-| Ponto de integração | Arquivo | Como funciona hoje |
-| ------------------- | ------- | ------------------ |
-| Cliente HTTP | `lib/api.ts` | anexa o Bearer token; 401 encerra a sessão; base em `VITE_API_URL` |
-| Busca de dados | `hooks/useApi.ts` + `components/ui/Async.tsx` | `useApi<T>(path)` → loading/erro/dados; `<Async>` centraliza os estados |
-| Autenticação real | `store/authStore.ts` | `login()` → `POST /api/auth/login`, guarda o JWT (persistido) |
-| Bootstrap do tenant | `hooks/useBootstrap.ts` | `GET /api/config` no `MainLayout`; aplica marca, tema e módulos |
-| Marca | `store/brandStore.ts` | default estático (login) sobrescrito pela config do tenant |
-| Módulos | `store/appStore.ts` → `applyServerConfig()` | enabled/order do tenant sobre o registry |
-| Tema | `store/themeStore.ts` → `applyTenantTheme()` | tema padrão do tenant; escolha manual do usuário vence |
-| Ícones | `lib/icons.ts` | resolve a `iconKey` textual da API → ícone do lucide |
-| Notícias / Atividades / Notificações | `modules/home`, `modules/activity`, `NotificationsMenu` | `useApi` em `GET /api/news` \| `/activity` \| `/notifications` |
-| Dados de cada tela | `modules/*/index.tsx` | `useApi` nos respectivos endpoints |
-| Assinatura / bloqueio | `MainLayout` + `components/Paywall.tsx` | `billing` do `/api/config`: Paywall quando inativa (admin isento) + banner ≤7 dias |
-| Painel do dono | `pages/admin/` (+ `analytics/`) + `components/charts` | `/api/admin/*`: provisiona contas, credita meses, ramo; financeiro (receita/lucro/inadimplência/ramos) |
-| Equipe da conta | `pages/team/` | `/api/team*`: admin do tenant cria/remove logins, respeitando o limite |
+| Ponto de integração                   | Arquivo                                                       | Como funciona hoje                                                                                        |
+| --------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Cliente HTTP                            | `lib/api.ts`                                                | anexa o Bearer token; 401 encerra a sessão; base em`VITE_API_URL`                                      |
+| Busca de dados                          | `hooks/useApi.ts` + `components/ui/Async.tsx`             | `useApi<T>(path)` → loading/erro/dados; `<Async>` centraliza os estados                              |
+| Autenticação real                     | `store/authStore.ts`                                        | `login()` → `POST /api/auth/login`, guarda o JWT (persistido)                                        |
+| Bootstrap do tenant                     | `hooks/useBootstrap.ts`                                     | `GET /api/config` no `MainLayout`; aplica marca, tema e módulos                                      |
+| Marca                                   | `store/brandStore.ts`                                       | default estático (login) sobrescrito pela config do tenant                                               |
+| Módulos                                | `store/appStore.ts` → `applyServerConfig()`              | enabled/order do tenant sobre o registry                                                                  |
+| Tema                                    | `store/themeStore.ts` → `applyTenantTheme()`             | tema padrão do tenant; escolha manual do usuário vence                                                  |
+| Ícones                                 | `lib/icons.ts`                                              | resolve a`iconKey` textual da API → ícone do lucide                                                   |
+| Notícias / Atividades / Notificações | `modules/home`, `modules/activity`, `NotificationsMenu` | `useApi` em `GET /api/news` \| `/activity` \| `/notifications`                                    |
+| Dados de cada tela                      | `modules/*/index.tsx`                                       | `useApi` nos respectivos endpoints                                                                      |
+| Assinatura / bloqueio                   | `MainLayout` + `components/Paywall.tsx`                   | `billing` do `/api/config`: Paywall quando inativa (admin isento) + banner ≤7 dias                   |
+| Painel do dono                          | `pages/admin/` (+ `analytics/`) + `components/charts`   | `/api/admin/*`: provisiona contas, credita meses, ramo; financeiro (receita/lucro/inadimplência/ramos) |
+| Equipe da conta                         | `pages/team/`                                               | `/api/team*`: admin do tenant cria/remove logins, respeitando o limite                                  |
 
 Duas convenções de contrato: a API envia **`iconKey` textual** (não componentes
 React — resolvida em `lib/icons.ts`) e **valores monetários como número** (o
@@ -488,8 +490,7 @@ Cada item é marcado com o princípio que endereça. Nenhum é bloqueante.
   por domínio) e importadas aqui pelo alias `@contracts` — nenhum módulo redefine
   `Product`/`Customer`/… Só `import type` (apagado no build). Tipos de UI/estado
   (props de componente, Zustand) seguem locais, de propósito.
-- **[Duplicação/Legibilidade] Kit de formulário + `useResourceForm`.** `components/ui/
-  FormFields` (`TextField`/`NumberField`/`SelectField`) reduz um campo de ~8 para ~2
+- **[Duplicação/Legibilidade] Kit de formulário + `useResourceForm`.** `components/ui/ FormFields` (`TextField`/`NumberField`/`SelectField`) reduz um campo de ~8 para ~2
   linhas; `hooks/useResourceForm` (`{ busy, error, run }`) encapsula o try/catch +
   tradução de `ApiError` que se repetia em todo form. Aplicado em todos os forms.
 - **[Legibilidade/Escalabilidade] Modularização de `modules/` e `pages/`.** Cada tela
@@ -511,6 +512,7 @@ Cada item é marcado com o princípio que endereça. Nenhum é bloqueante.
   cada montagem, sem cache/dedupe entre componentes; as listas vêm inteiras (sem
   paginação). Ótimo no volume atual; em escala, uma lib de cache (ex.: React Query) +
   paginação (espelhando o teto já anotado no backend em `admin_list_accounts`).
+
 > Ordem sugerida dos pendentes: **cache/paginação** quando o volume crescer.
 > (Code-splitting, tipos compartilhados, kit de formulário, modularização de
 > modules/pages e o error boundary já feitos.)

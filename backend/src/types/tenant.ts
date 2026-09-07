@@ -5,9 +5,10 @@ import type { BillingStatus } from './billing.js'
 export interface Brand {
   name: string
   mark: string
-  tagline: string
   /** Data URI da logo (ex.: 'data:image/png;base64,…') ou null (usa a sigla). */
   logo: string | null
+  phone: string | null
+  cnpj: string | null
 }
 
 /** Estado de um módulo para um tenant (o frontend faz merge com o registry). */

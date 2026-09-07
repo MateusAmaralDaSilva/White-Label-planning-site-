@@ -32,6 +32,9 @@ export async function getSales(tenantId: string): Promise<Sale[]> {
 export const saleCreateSchema = z.object({
   productId: z.number().int().positive(),
   quantity: z.number().int().positive(),
+  // Ausente em clientes antigos = preco padrao do produto. Zero e permitido
+  // para vendas gratuitas e tambem entra corretamente na metrificacao.
+  unitPrice: z.number().nonnegative().optional(),
   soldAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data deve ser YYYY-MM-DD'),
   // E-mail opcional para análise: string vazia é tratada como ausente.
   email: z.preprocess(
@@ -61,7 +64,17 @@ export async function createSale(tenantId: string, input: SaleCreate): Promise<S
          (tenant_id, product_id, description, category, quantity, unit_price, unit_cost, sold_at, buyer_email)
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        returning ${SALE_COLUMNS}`,
-      [tenantId, input.productId, p.name, p.category, input.quantity, p.price, p.cost, input.soldAt, input.email ?? null],
+      [
+        tenantId,
+        input.productId,
+        p.name,
+        p.category,
+        input.quantity,
+        input.unitPrice ?? p.price,
+        p.cost,
+        input.soldAt,
+        input.email ?? null,
+      ],
     )
     return rows[0]
   })

@@ -33,13 +33,14 @@ async function readConfig(query: TenantQuery, tenantId: string): Promise<TenantC
   const tenants = await query<{
     brand_name: string
     brand_mark: string
-    brand_tagline: string
     brand_logo: string | null
     theme_id: string
     paid_until: Date | null
     plan: string | null
+    phone: string | null
+    cnpj: string | null
   }>(
-    'select brand_name, brand_mark, brand_tagline, brand_logo, theme_id, paid_until, plan from app.tenants where id = $1',
+    'select brand_name, brand_mark, brand_logo, theme_id, paid_until, plan, phone, cnpj from app.tenants where id = $1',
     [tenantId],
   )
 
@@ -53,7 +54,7 @@ async function readConfig(query: TenantQuery, tenantId: string): Promise<TenantC
 
   return {
     tenantId,
-    brand: { name: t.brand_name, mark: t.brand_mark, tagline: t.brand_tagline, logo: t.brand_logo },
+    brand: { name: t.brand_name, mark: t.brand_mark, logo: t.brand_logo, phone: t.phone, cnpj: t.cnpj },
     themeId: t.theme_id,
     modules,
     billing: billingFromPaidUntil(t.paid_until ? t.paid_until.toISOString() : null, t.plan),

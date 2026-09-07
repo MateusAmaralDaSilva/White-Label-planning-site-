@@ -14,7 +14,6 @@ export interface AdminAccount {
   tenantId: string
   brandName: string
   brandMark: string
-  brandTagline: string
   themeId: string
   logo: string | null
   plan: string | null
@@ -26,5 +25,7 @@ export interface AdminAccount {
   maxUsers: number | null
   /** Ramo de atividade (setor) da conta; null = não informado. */
   industry: string | null
+  phone: string | null
+  cnpj: string | null
   createdAt: string
 }

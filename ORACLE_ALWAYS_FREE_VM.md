@@ -29,6 +29,7 @@ backend -> PostgreSQL (container db)
 - **db**: PostgreSQL com volume persistente
 - **backend**: API Express em Node
 - **frontend**: build do React servido por Nginx, com proxy para `/api`
+- **backup**: dump diario compactado do PostgreSQL em um diretorio persistente
 
 ### Ponto importante
 
@@ -244,6 +245,24 @@ services:
       retries: 5
     restart: unless-stopped
 
+  backup:
+    image: postgres:18-alpine
+    container_name: whitelabel-backup
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: whitelabel
+      BACKUP_DIR: /backups
+    volumes:
+      - ./backups:/backups
+      - ./backend/scripts/backup-postgres.sh:/usr/local/bin/backup-postgres.sh:ro
+    command: ["/bin/sh", "/usr/local/bin/backup-postgres.sh"]
+    restart: unless-stopped
+
   backend:
     build:
       context: .
@@ -305,8 +324,14 @@ Se o banco ja existir, pule este passo.
 
 ```bash
 for f in backend/db/migrations/*.sql; do
-  docker compose exec -T db psql -U postgres -d whitelabel -f "/migrations/$(basename "$f")"
+  docker compose exec -T db psql -U postgres -d whitelabel -f "/migrations/$(basename "$$f")"
 done
+```
+
+```Shell
+Get-ChildItem .\backend\db\migrations\*.sql | ForEach-Object {
+    docker compose exec -T db psql -U postgres -d whitelabel -f "/migrations/$($_.Name)"
+}
 ```
 
 ### 8.4 Trocar a senha da role da aplicacao
@@ -317,6 +342,12 @@ Depois da `0002_security.sql`, ajuste a senha da role:
 docker compose exec -T db psql -U postgres -d whitelabel -c "ALTER ROLE whitelabel_app WITH PASSWORD '${APP_DB_PASSWORD}';"
 ```
 
+```Shell
+docker compose exec -T db psql -U postgres -d whitelabel -c "ALTER ROLE whitelabel_app WITH PASSWORD 'sua_senha_real_aqui';"
+```
+
+docker compose exec -T db psql -U postgres -d whitelabel -c "ALTER ROLE whitelabel_app WITH PASSWORD 'sua_senha_real_aqui';"
+
 Essa senha precisa ser a mesma usada no `DATABASE_URL` do backend.
 
 ---
@@ -326,6 +357,27 @@ Essa senha precisa ser a mesma usada no `DATABASE_URL` do backend.
 ```bash
 docker compose up -d --build backend frontend
 ```
+
+### 9.1) Backup diario
+
+O Compose atual tambem sobe o servico `backup`, baseado na imagem oficial do
+PostgreSQL. Ele gera um arquivo `whitelabel-AAAAMMDD.dump` por dia em
+`./backups/`, valida o dump e remove arquivos mais antigos que 30 dias.
+
+```bash
+mkdir -p backups
+docker compose up -d backup
+docker compose logs -f backup
+ls -lh backups
+```
+
+O backup local e uma camada de seguranca contra erro logico, mas nao substitui
+uma copia fora da VM. Na Oracle Cloud, configure uma rotina do host para enviar
+`./backups/*.dump` ao OCI Object Storage (ou outro armazenamento externo), pois
+a perda da instancia/disco tambem apagaria a copia local. Restaure/teste um dump
+periodicamente antes de depender dele em emergencia.
+
+O servico usa a rede interna do Docker e nao exige abrir a porta 5432.
 
 ### Verificar status
 
@@ -431,4 +483,3 @@ Quase sempre e migration faltando, especialmente a `0019_verify_credentials.sql`
 - [README do backend](C:/Users/silva/Desktop/Projetos/White-Label-planning-site-.worktrees/oracle-always-free-vm-setup-guide/backend/README.md)
 - [README do banco](C:/Users/silva/Desktop/Projetos/White-Label-planning-site-.worktrees/oracle-always-free-vm-setup-guide/backend/db/README.md)
 - [Exemplo de env do frontend](C:/Users/silva/Desktop/Projetos/White-Label-planning-site-.worktrees/oracle-always-free-vm-setup-guide/frontend/.env.example)
-

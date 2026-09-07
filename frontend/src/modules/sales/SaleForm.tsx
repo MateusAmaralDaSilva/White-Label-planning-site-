@@ -21,6 +21,7 @@ export function SaleForm({
   onCreated: () => void
 }) {
   const [productId, setProductId] = useState(String(products[0]?.id ?? ''))
+  const [unitPrice, setUnitPrice] = useState(String(products[0]?.price ?? ''))
   const [quantity, setQuantity] = useState('1')
   const [soldAt, setSoldAt] = useState(todayInput())
   const [email, setEmail] = useState('')
@@ -28,8 +29,9 @@ export function SaleForm({
 
   const selected = products.find((p) => String(p.id) === productId)
   const qty = Number(quantity) || 0
-  const previewRevenue = selected ? selected.price * qty : 0
-  const previewProfit = selected ? (selected.price - selected.cost) * qty : 0
+  const effectivePrice = Number(unitPrice) || 0
+  const previewRevenue = effectivePrice * qty
+  const previewProfit = selected ? (effectivePrice - selected.cost) * qty : 0
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -37,6 +39,7 @@ export function SaleForm({
       await api.post('/api/sales', {
         productId: Number(productId),
         quantity: Number(quantity),
+        unitPrice: effectivePrice,
         soldAt,
         email: email.trim() || undefined,
       })
@@ -47,7 +50,17 @@ export function SaleForm({
   return (
     <Modal title="Registrar venda" subtitle="Lança receita e lucro nos relatórios" onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <SelectField label="Item" id="sale-product" value={productId} onChange={setProductId} required>
+        <SelectField
+          label="Item"
+          id="sale-product"
+          value={productId}
+          onChange={(value) => {
+            setProductId(value)
+            const product = products.find((p) => String(p.id) === value)
+            setUnitPrice(String(product?.price ?? ''))
+          }}
+          required
+        >
           {products.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name} — {formatBRL(p.price)}
@@ -56,9 +69,19 @@ export function SaleForm({
         </SelectField>
 
         <div className="grid grid-cols-2 gap-3">
+          <NumberField
+            label="Preço cobrado (R$)"
+            id="sale-unit-price"
+            value={unitPrice}
+            onChange={setUnitPrice}
+            min={0}
+            placeholder="0.00"
+            required
+          />
           <NumberField label="Quantidade" id="sale-qty" value={quantity} onChange={setQuantity} min={1} step={1} required />
-          <TextField label="Data" id="sale-date" type="date" value={soldAt} onChange={setSoldAt} required />
         </div>
+
+        <TextField label="Data" id="sale-date" type="date" value={soldAt} onChange={setSoldAt} required />
 
         <TextField
           label="E-mail (opcional)"

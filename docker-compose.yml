@@ -1,13 +1,13 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: whitelabel-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: postgres
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
       - ./backend/db/migrations:/migrations:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
@@ -16,30 +16,79 @@ services:
       retries: 5
     restart: unless-stopped
 
-  migrator:
-    image: postgres:16-alpine
-    container_name: whitelabel-migrator
+  backup:
+    image: postgres:18-alpine
+    container_name: whitelabel-backup
     depends_on:
       db:
         condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: whitelabel
+      BACKUP_DIR: /backups
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+    volumes:
+      - ./backups:/backups
+      - ./backend/scripts/backup-postgres.sh:/usr/local/bin/backup-postgres.sh:ro
+    command: ["/bin/sh", "/usr/local/bin/backup-postgres.sh"]
+    restart: unless-stopped
+
+  migrator:
+    image: postgres:18-alpine
+    container_name: whitelabel-migrator
+
+    depends_on:
+      db:
+        condition: service_healthy
+
     volumes:
       - ./backend/db/migrations:/migrations:ro
+
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
-    entrypoint: ["/bin/sh", "-c"]
-    command: >
-      until pg_isready -h db -U postgres; do sleep 1; done;
-      if [ "$(psql -h db -U postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='whitelabel'\")" != '1' ]; then
-        psql -h db -U postgres -d postgres -c "CREATE DATABASE whitelabel;";
-      fi;
-      for f in /migrations/*.sql; do
-        echo "Applying $f";
-        psql -h db -U postgres -d whitelabel -f "$f" || exit 1;
-      done;
-      # atualiza a senha da role da aplicacao
-      psql -h db -U postgres -d whitelabel -c "ALTER ROLE whitelabel_app WITH PASSWORD '$APP_DB_PASSWORD';"
+
+    command:
+      - /bin/sh
+      - -c
+      - |
+          until pg_isready -h db -U postgres; do
+            sleep 1
+          done
+
+          if [ "$(psql -h db -U postgres -tAc "SELECT 1 FROM pg_database WHERE datname='whitelabel'")" != "1" ]; then
+            psql -h db -U postgres -d postgres -c "CREATE DATABASE whitelabel;"
+          fi
+
+          for f in /migrations/*.sql; do
+            echo "Applying $$f"
+            psql -h db -U postgres -d whitelabel -f "$$f" || exit 1
+          done
+
+          psql -h db -U postgres -d whitelabel \
+            -c "ALTER ROLE whitelabel_app WITH PASSWORD '$$APP_DB_PASSWORD'"
+
     restart: "no"
+
+  seeder:
+      build:
+        context: .
+        dockerfile: backend/Dockerfile
+      container_name: whitelabel-seeder
+      # O seeder só roda DEPOIS que o migrator criar as tabelas
+      depends_on:
+        migrator:
+          condition: service_completed_successfully
+      environment:
+        # Aqui sim, injetamos a URL do superuser (postgres), pois este container morre depois de rodar
+        DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/whitelabel
+        ADMIN_TEMP_PASSWORD: ${ADMIN_TEMP_PASSWORD}
+      # Sobrescreve o comando padrão para rodar APENAS o bootstrap
+      command: ["node", "scripts/bootstrap.js"]
+      restart: "no" # Executa uma vez e finaliza (status Exited)
 
   backend:
     build:
@@ -53,6 +102,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       CORS_ORIGINS: ${CORS_ORIGINS}
       TRUST_PROXY: "1"
+      ADMIN_TEMP_PASSWORD: ${ADMIN_TEMP_PASSWORD}
     depends_on:
       db:
         condition: service_healthy
@@ -69,7 +119,7 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        VITE_API_URL: /api
+        VITE_API_URL: ""
     container_name: whitelabel-frontend
     depends_on:
       - backend

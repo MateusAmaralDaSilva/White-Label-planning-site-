@@ -17,4 +17,6 @@ RUN npm ci --omit=dev
 
 COPY --from=build /repo/backend/dist ./dist
 
+COPY backend/scripts ./scripts
+
 CMD ["node", "dist/index.js"]

@@ -41,7 +41,7 @@ accountsRouter.post(
   }),
 )
 
-// Atualiza a marca (nome/sigla/slogan/tema/logo) de uma conta.
+// Atualiza a marca (nome/sigla/tema/logo) de uma conta.
 accountsRouter.put(
   '/accounts/:tenantId',
   asyncHandler(async (req, res) => {

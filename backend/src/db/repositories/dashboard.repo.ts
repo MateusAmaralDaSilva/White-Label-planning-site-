@@ -2,6 +2,8 @@ import { z } from 'zod'
 import { withTenant } from '../tenant-context.js'
 import type { DashboardData, DashboardStat, DashboardTask } from '../../types/index.js'
 
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+
 /**
  * Dashboard (stats[] + tasks[]). Substitui data/dashboard.ts. O mini-feed
  * "Atividade Recente" NÃO vem daqui — o frontend deriva de GET /api/activity.
@@ -20,8 +22,32 @@ export async function getDashboard(tenantId: string): Promise<DashboardData | un
       [tenantId],
     )
 
+    // Os cards antigos foram criados como snapshots de onboarding. Receita,
+    // pedidos e ticket precisam refletir as vendas reais, inclusive quando o
+    // preÃ§o promocional foi salvo em `sales.unit_price`.
+    const [salesSummary] = await query<{
+      orders: number
+      revenue: string
+    }>(
+      `select count(*)::int as orders,
+              coalesce(sum(unit_price * quantity), 0) as revenue
+         from app.sales
+        where tenant_id = $1`,
+      [tenantId],
+    )
+    const orders = Number(salesSummary?.orders ?? 0)
+    const revenue = Number(salesSummary?.revenue ?? 0)
+    const averageTicket = orders > 0 ? revenue / orders : 0
+
+    const liveStats = stats.map((stat) => {
+      if (stat.iconKey === 'revenue') return { ...stat, value: brl.format(revenue) }
+      if (stat.iconKey === 'orders') return { ...stat, value: String(orders) }
+      if (stat.iconKey === 'ticket') return { ...stat, value: brl.format(averageTicket) }
+      return stat
+    })
+
     if (stats.length === 0 && tasks.length === 0) return undefined
-    return { stats, tasks }
+    return { stats: liveStats, tasks }
   })
 }
 

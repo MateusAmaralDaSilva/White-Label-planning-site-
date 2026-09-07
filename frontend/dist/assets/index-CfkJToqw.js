@@ -1,0 +1,1 @@
+import{j as o}from"./index-QXnBf-oF.js";import{C as t}from"./Catalog-BEPuEBbp.js";import"./PageHeader-BuG7-cNQ.js";import"./SearchInput-BDLNYAfP.js";import"./Badge-BkNHAo_O.js";import"./useResourceForm-Bx_Tcp-B.js";import"./x-B6HvenqQ.js";import"./FormActions-BXar8Tb1.js";import"./plus-DhaRJMYx.js";function n(){return o.jsx(t,{kind:"produto"})}export{n as default};

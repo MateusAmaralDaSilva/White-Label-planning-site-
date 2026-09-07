@@ -11,7 +11,7 @@ export function BrandingPanel() {
       <Brand />
       <div className="flex flex-1 flex-col justify-center py-12">
         <h2 className="mb-4 text-balance text-[2rem] font-bold leading-tight text-ink">
-          {brand.tagline}
+          Uma plataforma. Infinitas possibilidades.
         </h2>
         <p className="mb-9 text-sm leading-relaxed text-ink-muted">
           Configure os módulos que fazem sentido para o seu negócio. Adicione, remova e reordene

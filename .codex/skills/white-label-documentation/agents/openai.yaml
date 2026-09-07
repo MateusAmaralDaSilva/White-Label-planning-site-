@@ -1,0 +1,4 @@
+interface:
+  display_name: "White-Label Documentation"
+  short_description: "Document the app and guide future agents"
+  default_prompt: "Use $white-label-documentation to explain or update this app structure, behavior, and usage."

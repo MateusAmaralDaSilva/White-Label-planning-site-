@@ -43,6 +43,8 @@ export function AccountCard({
             </span>
             {acc.plan && <span>Plano: {PLAN_LABEL[acc.plan] ?? acc.plan}</span>}
             {acc.industry && <span>Ramo: {acc.industry}</span>}
+            {acc.phone && <span>Tel.: {acc.phone}</span>}
+            {acc.cnpj && <span>CNPJ: {acc.cnpj}</span>}
           </div>
           {acc.active && acc.daysLeft !== null && acc.daysLeft <= 7 && (
             <p className="mt-2 text-xs font-medium text-warning">

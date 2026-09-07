@@ -7,15 +7,15 @@ set -euo pipefail
 #   - sendmail, ssmtp ou msmtp instalados no host; ou
 #   - um servidor SMTP acessível via variáveis de ambiente.
 #
-# Exemplo de uso (Gmail):
-#   export NOTIFY_TO="silvaamaralmateus@gmail.com"
-#   export NOTIFY_FROM="silvaamaralmateus@gmail.com"
-#   export SMTP_HOST="smtp.gmail.com"
-#   export SMTP_PORT="587"
-#   export SMTP_USER="silvaamaralmateus@gmail.com"
-#   export SMTP_PASS="senha-de-app-do-gmail"
-#   export SMTP_SECURE="true"
-#   /path/to/monitor-notify-unhealthy.sh
+Exemplo de uso (Gmail):
+  export NOTIFY_TO="silvaamaralmateus@gmail.com"
+  export NOTIFY_FROM="silvaamaralmateus@gmail.com"
+  export SMTP_HOST="smtp.gmail.com"
+  export SMTP_PORT="587"
+  export SMTP_USER="silvaamaralmateus@gmail.com"
+  export SMTP_PASS="senha-de-app-do-gmail"
+  export SMTP_SECURE="true"
+  /path/to/monitor-notify-unhealthy.sh~
 
 NOTIFY_TO=${NOTIFY_TO:-}
 NOTIFY_FROM=${NOTIFY_FROM:-}

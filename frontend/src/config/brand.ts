@@ -3,10 +3,11 @@
  * tailwind.config.js) is all it takes to re-skin the whole app for a tenant.
  */
 export const brand = {
-  name: 'Whitelabel',
-  mark: 'WL',
-  tagline: 'Uma plataforma. Infinitas possibilidades.',
+  name: 'Wout',
+  mark: 'Wout',
   // Logo por tenant vem de GET /api/config após o login; na tela pré-login (esta
   // marca padrão) usamos a sigla.
   logo: null,
+  phone: null,
+  cnpj: null,
 } as const

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Modal, SelectField } from '@/components/ui'
+import { Button, Modal, NumberField, SelectField } from '@/components/ui'
 import { api } from '@/lib/api'
 import { useResourceForm } from '@/hooks/useResourceForm'
 import { PLANS } from '@/config/plans'
@@ -17,13 +17,18 @@ export function CreditForm({
   onSaved: () => void
 }) {
   const [plan, setPlan] = useState<string>(account.plan ?? PLANS[0].id)
+  const [amount, setAmount] = useState('')
   const { busy, error, run } = useResourceForm()
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const months = PLANS.find((p) => p.id === plan)?.months ?? 1
     run(async () => {
-      await api.post(`/api/admin/accounts/${account.tenantId}/credit`, { months, plan })
+      await api.post(`/api/admin/accounts/${account.tenantId}/credit`, {
+        months,
+        plan,
+        amount: amount.trim() === '' ? undefined : Number(amount),
+      })
       onSaved()
     }, 'Não foi possível creditar.')
   }
@@ -46,6 +51,15 @@ export function CreditForm({
             </option>
           ))}
         </SelectField>
+
+        <NumberField
+          label="Valor cobrado pelo período (R$)"
+          id="credit-amount"
+          value={amount}
+          onChange={setAmount}
+          min={0}
+          placeholder="vazio = preco padrao"
+        />
 
         {error && <p className="text-sm text-danger">{error}</p>}
 

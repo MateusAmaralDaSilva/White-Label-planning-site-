@@ -327,42 +327,4 @@ grant execute on function app.admin_add_user(text, text, citext, text, text)    
 grant execute on function app.admin_credit_months(text, text, integer, text)       to whitelabel_app;
 grant execute on function app.admin_list_accounts(text)                            to whitelabel_app;
 
--- ============================================================================
--- SEED do administrador de plataforma
--- ----------------------------------------------------------------------------
--- Cria o tenant técnico 'platform' e o usuário administrador. A SENHA abaixo é um
--- PLACEHOLDER e DEVE ser trocada antes de qualquer uso real (veja db/README.md).
---
---   >>> TROQUE A SENHA <<<
---   Gere um novo hash e atualize a linha do usuário, por exemplo:
---     update app.users
---        set password_hash = crypt('SUA-SENHA-FORTE', gen_salt('bf', 12))
---      where email = 'silvaamaralmateus@gmail.com';
---
--- `paid_until` é uma data futura distante para o tenant de admin nunca expirar (o
--- admin também é isento do bloqueio na API, mas isto evita qualquer ambiguidade).
--- Evitamos o literal 'infinity' de propósito: o driver `pg` o mapeia para o
--- número Infinity (não um Date), o que complicaria a serialização no backend.
--- ============================================================================
--- Os textos acentuados usam escapes Unicode (U&'...') de propósito: assim a
--- inserção NÃO depende do encoding do console do psql (no Windows costuma ser
--- WIN1252), que corromperia os acentos ao aplicar o arquivo. \00E7 = ç, \00E3 = ã.
-insert into app.tenants (id, brand_name, brand_mark, brand_tagline, theme_id, plan, paid_until)
-values
-  ('platform', U&'Administra\00E7\00E3o', 'AD',
-   U&'Console de administra\00E7\00E3o da plataforma', 'dark', null,
-   timestamptz '2999-12-31 00:00:00+00')
-on conflict (id) do nothing;
 
--- O admin também precisa de ao menos o módulo Início para o painel renderizar.
-insert into app.modules (tenant_id, module_id, enabled, sort_order) values
-  ('platform', 'home', true, 0)
-on conflict (tenant_id, module_id) do nothing;
-
--- Senha placeholder: 'PLACEHOLDER-TROCAR-SENHA'. gen_salt('bf', 12) → bcrypt custo
--- 12, compatível com o bcryptjs do backend. TROQUE conforme o bloco acima.
-insert into app.users (id, tenant_id, email, name, password_hash, is_platform_admin)
-values
-  ('u-admin', 'platform', 'silvaamaralmateus@gmail.com', 'Administrador',
-   crypt('Madara1108.', gen_salt('bf', 10)), true)
-on conflict (id) do nothing;

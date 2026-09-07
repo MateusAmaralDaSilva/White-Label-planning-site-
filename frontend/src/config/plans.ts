@@ -12,7 +12,7 @@
 export const CONTACT_EMAIL = 'silvaamaralmateus@gmail.com'
 
 export interface Plan {
-  id: 'mensal' | 'semestral' | 'anual'
+  id: 'mensal' | 'semestral' | 'anual' | 'inloco'
   name: string
   /** Meses de assinatura creditados neste plano. */
   months: number
@@ -36,42 +36,37 @@ export const PLANS: Plan[] = [
     id: 'mensal',
     name: 'Mensal',
     months: 1,
-    price: 149,
+    price: 50,
     priceNote: 'por mês, renovação mensal',
     features: [
       'Todos os módulos da plataforma',
       'Marca e tema personalizados',
-      'Usuários ilimitados na conta',
-      'Suporte por e-mail',
-    ],
-  },
-  {
-    id: 'semestral',
-    name: 'Semestral',
-    months: 6,
-    price: 799,
-    priceNote: '6 meses — equivale a R$ 133/mês',
-    badge: 'Mais popular',
-    featured: true,
-    features: [
-      'Tudo do plano Mensal',
-      'Economia de ~11% frente ao mensal',
-      'Prioridade no suporte',
-      'Onboarding assistido',
+      'Suporte por e-mail'
     ],
   },
   {
     id: 'anual',
     name: 'Anual',
     months: 12,
-    price: 1490,
+    price: 600,
     priceNote: '12 meses — equivale a R$ 124/mês',
-    badge: 'Melhor custo',
+    badge: 'Melhor custo - Mais popular',
     features: [
-      'Tudo do plano Semestral',
-      'Economia de ~17% frente ao mensal',
+      'Tudo do plano memestral',
       'Suporte prioritário',
-      '2 meses de bônus na prática',
+      'Até três usuários na conta'
+    ],
+  },
+  {
+    id: 'inloco',
+    name: 'Local (sem hospedagem)',
+    months: 6,
+    price: 0,
+    priceNote: 'Preço sob consulta — sem hospedagem',
+    features: [
+      'Pagamento apenas uma vez (sem mensalidade)',
+      'Hospedagem e manutenção por conta do cliente',
+      'Suporte via consultoria (sob demanda)',  
     ],
   },
 ]

@@ -11,6 +11,11 @@ export function actor(req: { auth?: { sub: string } }): string {
  */
 function translatePgError(err: unknown): never {
   const code = (err as { code?: string }).code
+  const constraint = (err as { constraint?: string }).constraint
+  if (code === '23514' && constraint === 'tenants_max_users_check')
+    throw badRequest('O mÃ¡ximo de usuÃ¡rios deve ser maior que zero ou ficar vazio.')
+  if (code === '23514' && constraint === 'billing_events_amount_check')
+    throw badRequest('O valor cobrado deve ser maior ou igual a zero.')
   switch (code) {
     case '23505': // unique_violation — tenant/e-mail já existe
       throw conflict('Já existe uma conta com esse id de tenant ou e-mail')

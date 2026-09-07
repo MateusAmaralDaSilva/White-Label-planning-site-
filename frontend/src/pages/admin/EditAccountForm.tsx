@@ -5,7 +5,7 @@ import { useResourceForm } from '@/hooks/useResourceForm'
 import type { AdminAccount } from '@contracts'
 import { BrandFields, type BrandFieldsValue } from './BrandFields'
 
-/** Editar marca de uma conta (nome/sigla/slogan/tema/ramo/máx. usuários/logo). */
+/** Editar marca de uma conta (nome/sigla/tema/ramo/máx. usuários/logo). */
 export function EditAccountForm({
   account,
   industries,
@@ -20,10 +20,11 @@ export function EditAccountForm({
   const [brand, setBrand] = useState<BrandFieldsValue>({
     brandMark: account.brandMark,
     brandName: account.brandName,
-    brandTagline: account.brandTagline,
     themeId: account.themeId,
     industry: account.industry ?? '',
     maxUsers: account.maxUsers !== null ? String(account.maxUsers) : '',
+    phone: account.phone ?? '',
+    cnpj: account.cnpj ?? '',
     logo: account.logo,
   })
   const { busy, error, run } = useResourceForm()
@@ -35,11 +36,12 @@ export function EditAccountForm({
       await api.put(`/api/admin/accounts/${account.tenantId}`, {
         brandName: brand.brandName.trim(),
         brandMark: brand.brandMark.trim(),
-        brandTagline: brand.brandTagline.trim(),
         themeId: brand.themeId,
         logo: brand.logo,
         maxUsers: brand.maxUsers ? Number(brand.maxUsers) : null,
         industry: brand.industry || null,
+        phone: brand.phone.trim() || null,
+        cnpj: brand.cnpj.trim() || null,
       })
       onSaved()
     }, 'Não foi possível salvar a conta.')

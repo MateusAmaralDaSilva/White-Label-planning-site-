@@ -1,344 +1,239 @@
 # Backend — Plataforma Whitelabel
 
-API que implementa a **estratégia 8.3.C ("Tenant via API")** descrita na
-`../frontend/ARCHITECTURE.md`: após o login, o backend devolve a configuração do
-tenant (marca, tema, módulos) e serve os dados de cada tela. Cada endpoint aqui
-corresponde a um ponto de integração já previsto no frontend.
+API HTTP da plataforma de planejamento white-label. O backend atende a autenticação, a configuração de cada tenant, os módulos de negócio, o painel administrativo e o acesso seguro ao PostgreSQL.
 
-> 📚 **Começando agora / aprendendo?** Leia o **[GUIA.md](GUIA.md)** — umaa
-> explicação didática (com o "porquê") de como o backend e o banco funcionam:
-> multi-tenant, JWT, RLS, middleware, migrations e o caminho de uma requisição.
+O frontend não acessa o banco diretamente. O caminho normal é:
+
+```text
+React/Vite → API Express → middleware de autenticação → repositório → PostgreSQL/RLS
+```
+
+Documentação relacionada:
+
+- [GUIA.md](GUIA.md): explicação didática do backend.
+- [db/README.md](db/README.md): banco, segurança, migrations e bootstrap.
+- [DEPLOY.md](../DEPLOY.md): configuração de produção e Docker.
+- [frontend/README.md](../frontend/README.md): integração do frontend.
+
+## Estado atual importante
+
+- O entrypoint real do código é [`src/index.ts`](src/index.ts), e o build produz `dist/index.js`.
+- Os scripts `dev` e `start` atualmente referenciam `src/server.ts` e `dist/server.js`, arquivos que não existem neste checkout. Até esses scripts serem corrigidos, use os comandos diretos descritos abaixo.
+- A API não usa mais mocks em memória. Os dados vêm do PostgreSQL por meio dos repositórios em `src/db/repositories/`.
+- O seed atual é [`scripts/bootstrap.js`](scripts/bootstrap.js), executado pelo serviço `seeder` do Docker Compose. O antigo `0003_seed.sql` não está na pasta atual de migrations.
+- A migration `0021_default_dashboard.sql` garante que uma conta nova receba o módulo Dashboard, quatro cards iniciais e três tarefas de onboarding. A mesma função também corrige tenants existentes sem dados de dashboard.
 
 ## Stack
 
-| Camada      | Tecnologia                   | Por quê                                |
-| ----------- | ---------------------------- | --------------------------------------- |
-| Runtime     | **Node + TypeScript**  | Mesma linguagem do frontend             |
-| HTTP        | **Express**            | Minimalista e onipresente               |
-| Auth        | **JWT** (jsonwebtoken) | Stateless; o`tenantId` viaja no token |
-| Senhas      | **bcryptjs**           | Hash das senhas (nada em texto puro)    |
-| Validação | **zod**                | Valida o corpo das requisições        |
-| Dados       | **PostgreSQL** (pg)    | Isolamento por tenant imposto por RLS   |
+| Camada | Tecnologia | Responsabilidade |
+| --- | --- | --- |
+| Runtime | Node.js 20 + TypeScript | Processo da API |
+| HTTP | Express 4 | Rotas, CORS, JSON e health check |
+| Autenticação | JWT + `jsonwebtoken` | Sessão e identidade do tenant |
+| Senhas | `bcryptjs` + PostgreSQL `crypt()` | Hash na criação e verificação dentro do banco |
+| Validação | Zod | Validação dos corpos recebidos pela API |
+| Persistência | PostgreSQL + `pg` | Dados, funções SQL, RLS e transações |
+| Segurança | RLS + roles + funções `SECURITY DEFINER` | Isolamento entre tenants e operações administrativas |
 
-Os dados vivem no **PostgreSQL**, no schema `app`, com isolamento por tenant
-imposto pelo banco via **RLS** (Row-Level Security). Cada repositório em
-`src/db/repositories/` abre uma transação, declara o tenant do JWT
-(`SET LOCAL app.current_tenant`) e executa consultas parametrizadas. O schema, a
-segurança e o seed estão em `db/migrations/`; ver **`db/README.md`** para como
-criar o banco e aplicar as migrations.
+## Estrutura do backend
 
-## Rodando
+```text
+src/
+├── index.ts                 # Express, CORS, limites JSON, mounts e listen
+├── config/env.ts            # Variáveis de ambiente e fail-fast
+├── routes/
+│   ├── auth.ts              # Login e /me
+│   ├── data/                # Rotas autenticadas por tenant
+│   │   ├── index.ts         # Ordem dos middlewares e composição dos domínios
+│   │   └── *.routes.ts      # Produtos, clientes, agenda, vendas etc.
+│   └── admin/               # Rotas do administrador de plataforma
+├── middleware/
+│   ├── auth.ts              # JWT, usuário atual, admin de plataforma e admin do tenant
+│   ├── subscription.ts      # Bloqueio HTTP 402 quando a assinatura expira
+│   └── error.ts             # 404 e conversão central de erros para JSON
+├── db/
+│   ├── pool.ts              # Pool PostgreSQL com a role whitelabel_app
+│   ├── tenant-context.ts    # withTenant() e withTransaction()
+│   └── repositories/        # Única camada normal que executa SQL de domínio
+├── lib/                     # JWT, erros HTTP, billing, rate-limit e helpers
+└── types/                   # Contratos compartilhados com o frontend
 
-```bash
-npm install
-cp .env.example .env      # ajuste JWT_SECRET / CORS / DATABASE_URL
-# Crie o banco e aplique as migrations antes de subir — ver db/README.md.
-npm run dev               # http://localhost:4000 (reload automático)
+db/
+├── migrations/              # Histórico SQL ordenado do schema
+├── old migrations/          # Histórico antigo; não entra no fluxo atual
+├── ER whitelabel.png        # Diagrama visual
+└── ER whitelabel.pgerd      # Fonte do diagrama
+
+scripts/
+└── bootstrap.js             # Tenants, usuários e dados de demonstração
 ```
 
-A API exige `DATABASE_URL` no boot (falha rápido se ausente). O passo a passo
-para criar o banco, aplicar `db/migrations/*` e as credenciais de teste do seed
-estão em **`db/README.md`**.
+### Como localizar uma mudança
 
-Outros comandos: `npm run build` (compila para `dist/`), `npm start` (roda o
-build), `npm run typecheck`.
+| Quero mudar... | Comece em... | Depois confira... |
+| --- | --- | --- |
+| Endpoint de um domínio | `src/routes/data/<dominio>.routes.ts` | Repositório correspondente e `src/types/` |
+| Login ou sessão | `src/routes/auth.ts` | `middleware/auth.ts`, `users.repo.ts`, migration `0019` |
+| Administração de contas | `src/routes/admin/` | `admin.repo.ts` e funções `admin_*` no SQL |
+| Regra de acesso por tenant | `src/db/tenant-context.ts` | `middleware/auth.ts`, repositório e RLS em `0002_security.sql` |
+| Consulta ou validação de domínio | `src/db/repositories/<dominio>.repo.ts` | Contrato em `src/types/<dominio>.ts` |
+| Formato usado pelo frontend | `src/types/` | Alias `@contracts` em `frontend/tsconfig.json` |
+| Nova tabela, coluna, função ou política | `db/migrations/` | Criar a próxima migration; nunca editar uma já aplicada |
 
-## Credenciais de teste
+## Variáveis de ambiente
 
-| E-mail                | Senha        | Tenant  |
-| --------------------- | ------------ | ------- |
-| `admin@acme.com`    | `senha123` | acme    |
-| `maria@clinica.com` | `senha123` | clinica |
+A API lê o ambiente uma vez em [`src/config/env.ts`](src/config/env.ts) e falha no boot sem `DATABASE_URL`. Não existe atualmente um `backend/.env.example`; mantenha valores reais fora do Git.
 
-Cada tenant tem marca, tema e conjunto de módulos próprios — o mesmo código
-serve os dois; o `tenantId` do JWT decide o que é retornado.
+| Variável | Obrigatória | Uso |
+| --- | --- | --- |
+| `DATABASE_URL` | Sim | Conexão da aplicação com PostgreSQL usando a role `whitelabel_app`. |
+| `JWT_SECRET` | Em produção | Assinatura dos tokens. Em produção, a ausência encerra o processo. |
+| `NODE_ENV` | Recomendável | Use `production` no deploy. |
+| `CORS_ORIGINS` | Em produção | Origens do frontend separadas por vírgula. |
+| `PORT` | Não | Porta HTTP; padrão `4000`. |
+| `JWT_EXPIRES_IN` | Não | Validade do token; padrão `7d`. |
+| `TRUST_PROXY` | Atrás de proxy | Configura confiança em `X-Forwarded-For` para o rate-limit. |
+| `DB_POOL_MAX` | Não | Máximo de conexões por instância; padrão `10`. |
+| `ADMIN_TEMP_PASSWORD` | Seeder | Senha temporária usada somente por `scripts/bootstrap.js` para criar o administrador de plataforma. |
+
+O backend deve usar a role `whitelabel_app` em runtime. O dono do banco é reservado para aplicar migrations e executar operações administrativas de banco.
+
+## Executar localmente
+
+Pré-requisitos: Node.js, npm, PostgreSQL e `psql` disponíveis. Primeiro crie/configure o banco seguindo [db/README.md](db/README.md).
+
+```bash
+cd backend
+npm ci
+```
+
+Configure um `.env` local com pelo menos `DATABASE_URL`. Em produção, também defina `NODE_ENV`, `JWT_SECRET` e `CORS_ORIGINS` adequadamente.
+
+Como o script `npm run dev` está apontando para um arquivo inexistente neste momento, rode o entrypoint real diretamente:
+
+```bash
+npx tsx watch src/index.ts
+```
+
+Para compilar e executar o artefato atual:
+
+```bash
+npm run build
+node dist/index.js
+```
+
+Verificações disponíveis:
+
+```bash
+npm run typecheck
+curl http://localhost:4000/health
+```
+
+O health check responde:
+
+```json
+{ "status": "ok" }
+```
+
+## Pipeline de uma requisição
+
+### Login
+
+`POST /api/auth/login` valida o corpo com Zod, aplica rate-limit por IP e chama `app.verify_credentials(email, senha)`. O hash não sai do banco. Em caso de sucesso, a API assina um JWT com usuário, tenant e papéis.
+
+### Requisição autenticada de tenant
+
+1. `requireAuth` valida o Bearer token.
+2. `loadCurrentUser` relê o usuário, os papéis e a assinatura no banco a cada requisição.
+3. `requireActiveSubscription` bloqueia dados com HTTP 402 quando a assinatura expirou; o administrador de plataforma é isento.
+4. O helper do domínio obtém `tenantId` do JWT.
+5. O repositório abre `withTenant()`, inicia uma transação e executa `SET LOCAL app.current_tenant`.
+6. O RLS do PostgreSQL impede leitura ou escrita fora do tenant, mesmo que uma consulta esqueça um filtro explícito.
+
+`GET /api/config` fica antes do bloqueio de assinatura para que o frontend consiga carregar billing e mostrar o paywall.
+
+### Dashboard padrão e personalização
+
+Ao criar uma conta pelo painel `/admin`, o banco executa `app.ensure_default_dashboard(tenant_id)` dentro do provisionamento. Isso cria, apenas quando o tenant ainda não possui dados:
+
+- cards de Receita total, Novos clientes, Pedidos e Ticket médio;
+- tarefas iniciais para cadastrar produto, registrar venda e adicionar cliente.
+
+O dashboard pode ser alterado sem duplicar a regra padrão:
+
+- **Tarefas do cliente:** o usuário pode criar, editar, concluir e excluir tarefas diretamente na tela `/dashboard`, usando `/api/dashboard/tasks`.
+- **Cards e layout da tela:** a apresentação fica em `frontend/src/modules/dashboard/` (`StatsGrid.tsx`, `RecentActivity.tsx` e `TasksCard.tsx`); os dados dos cards ficam em `app.dashboard_stats`.
+- **Novo padrão para futuras contas:** altere a função `app.ensure_default_dashboard` em uma nova migration. Nunca edite `0021` depois de aplicada.
+- **Dashboard de um tenant específico:** crie uma operação administrativa explícita para editar `app.dashboard_stats`/`app.dashboard_tasks` ou aplique uma alteração SQL controlada com o contexto e as permissões corretas. Não altere o padrão global para resolver uma necessidade de apenas um cliente.
+
+Após qualquer mudança de cards, campos ou contrato, atualize `backend/src/types/dashboard.ts`, o repositório e os componentes correspondentes, e faça build do backend e do frontend.
+
+### Administração de plataforma
+
+As rotas `/api/admin/*` exigem `requireAuth`, `loadCurrentUser` e `requireAdmin`. Além do middleware, as funções SQL administrativas revalidam o papel do ator. Elas podem listar/criar/editar contas, gerenciar logins, creditar meses, registrar custos e consultar analytics entre tenants.
 
 ## Endpoints
 
-Todas as rotas de dados exigem o header `Authorization: Bearer <token>`.
-O `tenantId` é lido do token — o cliente nunca escolhe de qual tenant lê.
+Todas as rotas abaixo, exceto `/health` e o login, exigem `Authorization: Bearer <token>` quando indicado. O tenant nunca vem de um campo escolhido pelo frontend.
 
-| Método | Rota                     | Retorno                                                                   | Integração no frontend                    |
-| ------- | ------------------------ | ------------------------------------------------------------------------- | ------------------------------------------- |
-| GET     | `/health`              | `{ status }`                                                            | —                                          |
-| POST    | `/api/auth/login`      | `{ token, user }`                                                       | `store/authStore.ts` → `login()`       |
-| GET     | `/api/auth/me`         | `{ user }`                                                              | reidratar sessão no reload                 |
-| GET     | `/api/config`          | `{ tenantId, brand, themeId, modules }`                                 | `appStore` + `themeStore` + `brand`   |
-| PUT     | `/api/config`          | config atualizada                                                         | `appStore` salva módulos (ModuleManager) |
-| GET     | `/api/news`            | `NewsItem[]`                                                            | `config/news.ts` → `getNews()`         |
-| GET     | `/api/activity`        | `ActivityEvent[]`                                                       | `config/activity.ts` → `getActivity()` |
-| GET     | `/api/notifications`   | `AppNotification[]`                                                     | `config/notifications.ts`                 |
-| GET     | `/api/products`        | `Product[]` (com `cost` e `kind`; aceita `?kind=produto\|servico`) | `modules/products`, `modules/services`  |
-| GET     | `/api/customers`       | `Customer[]`                                                            | `modules/customers`                       |
-| GET     | `/api/sales`           | `Sale[]`                                                                | `modules/sales`                           |
-| GET     | `/api/calendar/events` | `CalendarEvent[]`                                                       | `modules/calendar`                        |
-| GET     | `/api/reports`         | `{ kpis, revenue, profit, categories, expenses }` (calculado)           | `modules/reports`                         |
-| GET     | `/api/dashboard`       | `{ stats, tasks }`                                                      | `modules/dashboard`                       |
-| GET     | `/api/support/tickets` | `Ticket[]`                                                              | `modules/support`                         |
+| Grupo | Rotas principais | Uso |
+| --- | --- | --- |
+| Saúde | `GET /health` | Health check do processo. |
+| Auth | `POST /api/auth/login`, `GET /api/auth/me` | Entrar e revalidar a sessão. |
+| Configuração | `GET/PUT /api/config` | Marca, tema, módulos e billing do tenant. |
+| Feeds | `GET /api/news`, `/api/activity`, `/api/notifications` | Home, atividades e sino. |
+| Produtos/serviços | `GET/POST /api/products`, `PUT/DELETE /api/products/:id` | CRUD; `?kind=produto` ou `?kind=servico`. |
+| Clientes | `GET/POST /api/customers`, `PUT/DELETE /api/customers/:id` | CRUD de clientes. |
+| Vendas | `GET/POST /api/sales`, `DELETE /api/sales/:id` | Registro e histórico de vendas. |
+| Agendas | `GET/POST /api/calendar/calendars`, `PUT/DELETE /api/calendar/calendars/:id` | Agendas do usuário/tenant. |
+| Eventos | `GET/POST /api/calendar/events`, `PUT/DELETE /api/calendar/events/:id` | Compromissos do calendário. |
+| Dashboard | `GET /api/dashboard`, CRUD `/api/dashboard/tasks` | Estatísticas e tarefas. |
+| Relatórios | `GET /api/reports` | Receita, custos, lucro e rankings calculados. |
+| Despesas | `POST /api/expenses`, `DELETE /api/expenses/:id` | Gastos mensais que alimentam relatórios. |
+| Suporte | CRUD `/api/support/tickets` | Chamados do tenant. |
+| Equipe | `GET /api/team`, `POST /api/team/users`, `DELETE /api/team/users/:id` | Logins da conta; exige admin do tenant. |
+| Contas admin | CRUD `/api/admin/accounts`, usuários e `/credit` | Provisionamento e manutenção de tenants. |
+| Financeiro admin | `GET /api/admin/analytics`, CRUD `/api/admin/platform-expenses` | Receita, inadimplência, custos e lucro da plataforma. |
 
-As formas de resposta estão tipadas em `src/types/` (barril em `index.ts`) e espelham o que o
-frontend já consome.
+Os contratos TypeScript de resposta e entrada ficam em [`src/types/`](src/types/). Antes de documentar um payload específico, confira o schema Zod e o repositório da rota correspondente.
 
-### Escrita (criar / editar / excluir)
+## Regras de segurança
 
-As telas de negócio têm CRUD. Todo corpo é validado com **zod** (corpo inválido →
-`400`); o `tenantId` do token entra no `WHERE`/`WITH CHECK`, então o RLS garante
-que uma escrita nunca cruze a fronteira entre tenants. Recurso inexistente no
-tenant → `404`.
+- A aplicação conecta como `whitelabel_app`, nunca como o dono do banco.
+- O tenant vem do JWT assinado, não de `req.body` ou query string.
+- Consultas usam parâmetros PostgreSQL; não concatene entrada do usuário em SQL.
+- `withTenant()` mantém o tenant no escopo da transação com `SET LOCAL`.
+- A role da aplicação não deve ler `password_hash`; a verificação ocorre em `app.verify_credentials`.
+- A autorização é relida no banco por requisição para permitir revogação imediata.
+- O PostgreSQL complementa Zod com RLS, constraints, enums e limites de recurso.
+- O rate-limit de login é em memória e vale por instância do backend.
 
-| Método | Rota                         | Corpo                                             | Resposta         |
-| ------- | ---------------------------- | ------------------------------------------------- | ---------------- |
-| POST    | `/api/products`            | `{ name, category, kind, price, cost, stock }`  | `201` Product  |
-| PUT     | `/api/products/:id`        | idem (substituição total)                       | `200` Product  |
-| DELETE  | `/api/products/:id`        | —                                                | `204`          |
-| POST    | `/api/sales`               | `{ productId, quantity, soldAt, email? }`       | `201` Sale     |
-| DELETE  | `/api/sales/:id`           | —                                                | `204`          |
-| POST    | `/api/expenses`            | `{ refMonth, label, amount }`                   | `201` Expense  |
-| DELETE  | `/api/expenses/:id`        | —                                                | `204`          |
-| POST    | `/api/customers`           | `{ name, email, phone, accent?, responsible? }` | `201` Customer |
-| PUT     | `/api/customers/:id`       | idem (`accent` omitido mantém o atual)         | `200` Customer |
-| DELETE  | `/api/customers/:id`       | —                                                | `204`          |
-| POST    | `/api/calendar/events`     | `{ label, year, month, day, color? }`           | `201` Event    |
-| PUT     | `/api/calendar/events/:id` | idem (`color` omitido mantém o atual)          | `200` Event    |
-| DELETE  | `/api/calendar/events/:id` | —                                                | `204`          |
-| POST    | `/api/support/tickets`     | `{ subject, customer }`                         | `201` Ticket   |
-| PUT     | `/api/support/tickets/:id` | `{ subject, customer, status }`                 | `200` Ticket   |
-| DELETE  | `/api/support/tickets/:id` | —                                                | `204`          |
-| POST    | `/api/dashboard/tasks`     | `{ label }`                                     | `201` Task     |
-| PUT     | `/api/dashboard/tasks/:id` | `{ label?, done? }` (patch; ao menos um)        | `200` Task     |
-| DELETE  | `/api/dashboard/tasks/:id` | —                                                | `204`          |
+## Docker
 
-Notas:
+O [`backend/Dockerfile`](Dockerfile) compila TypeScript e executa `node dist/index.js`. No [`docker-compose.yml`](../docker-compose.yml), o backend depende do PostgreSQL e recebe `DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGINS` e demais variáveis pelo ambiente do Compose.
 
-- **`month` é 0-based** (janeiro = 0), igual ao `Date` do JS e ao schema do banco.
-- **Produtos/clientes** usam `id` numérico por tenant, calculado no servidor
-  (não é enviado pelo cliente). **Chamados** têm `id` textual (`#083`); no
-  frontend, o `#` precisa de `encodeURIComponent` na URL.
-- **Chamado** nasce sempre com status `Aberto`; na edição o **tom acompanha o
-  status** (`Aberto`→danger, `Em andamento`→warning, `Resolvido`→success),
-  decidido no servidor.
-- `price`, `stock`, valores monetários e `pct` têm `CHECK` no banco (defesa em
-  profundidade) além do zod.
-- **Tarefas do dashboard**: o `PUT` é um *patch* — o mesmo endpoint serve para
-  editar o texto (`{ label }`) e para marcar/desmarcar (`{ done }`); campos
-  omitidos não mudam.
-- **Produtos e serviços** vivem na mesma tabela; `kind` (`produto`/`servico`)
-  distingue os dois. Ambos têm `price` e `cost` → lucro unitário = `price - cost`.
-- **Vendas** guardam um *snapshot* de preço/custo do item no momento (`soldAt` é
-  data real): o cliente só envia `productId`, `quantity` e `soldAt` — o servidor
-  copia preço/custo do produto, então o valor não pode ser adulterado.
-- **Relatórios são calculados** a partir de vendas + gastos (receita, CMV,
-  lucro/prejuízo, margem, top categorias). Nunca `404`: sem dados, retorna
-  estrutura vazia para a aba renderizar.
-- **Produtos × Serviços**: mesma tabela; a UI separa em duas abas via
-  `GET /api/products?kind=…`. `cost`/`price` valem para os dois.
-- Campos opcionais: `customers.responsible` (texto livre) e `sales.email`
-  (e-mail avulso para análise) — ambos anuláveis, adicionados em `0005`.
+O serviço `seeder` usa temporariamente a URL do superusuário para executar `scripts/bootstrap.js`; isso não deve ser confundido com a conexão normal da API, que usa `whitelabel_app`.
 
-**`PUT /api/config`** persiste a config do usuário do tenant (do token). Corpo
-parcial, validado com zod — envie só o que mudou:
+## Testes e diagnóstico
 
-```jsonc
-{
-  "themeId": "dark",                                  // opcional
-  "modules": [{ "id": "home", "enabled": true, "order": 0 }] // opcional
-}
-```
+O repositório possui o smoke test manual [`tests/login-smoke.ps1`](../tests/login-smoke.ps1). Ele testa login válido e rejeição de senha inválida contra contas de demonstração; não substitui uma suíte automatizada de unidade ou integração.
 
-`brand` e `tenantId` não são editáveis. O frontend chama este endpoint
-automaticamente ao ligar/desligar/reordenar módulos no ModuleManager. A
-persistência é no PostgreSQL (tabela `app.modules`, por tenant).
+Para investigar uma falha:
 
-### Duas diferenças propositais em relação aos mocks
+1. Confira PostgreSQL, migrations e `DATABASE_URL`.
+2. Confira `GET /health`.
+3. Confira CORS e a URL gravada no frontend.
+4. Teste `POST /api/auth/login`.
+5. Se o login funcionar mas a tela estiver vazia, inspecione `GET /api/config`, billing, módulos e os logs do repositório/RLS.
 
-1. **Ícones viram chaves de texto.** O backend não envia componentes React.
-   Onde o mock embutia um ícone do `lucide-react` (notificações, dashboard,
-   relatórios), a API envia `iconKey` (ex.: `"sale"`, `"revenue"`) e o frontend
-   mapeia `iconKey → ícone`. O mesmo já valia para `type`/`category` em
-   activity/news, que o frontend traduz via `ACTIVITY_TYPE`/`NEWS_CATEGORY`.
-2. **Valores monetários viram números.** `price`, `spent`, `value` vêm como
-   número (ex.: `79.9`) em vez de string pré-formatada. O frontend formata com
-   `Intl.NumberFormat` — a função `formatBRL` já existe em `config/activity.ts`.
-   (Os valores de `activity.amount` já eram números, então isto mantém a
-   consistência.)
+## Mudanças que exigem cuidado
 
-## Integração com o frontend
+| Alteração | Ação necessária |
+| --- | --- |
+| Rota ou regra sem schema novo | Alterar rota/repositório e rodar build/typecheck. |
+| Tipo compartilhado | Alterar `src/types/` e verificar build do backend e frontend. |
+| Schema, função, RLS ou índice | Criar migration nova, aplicar como dono, depois recompilar/reiniciar. |
+| Variável do backend | Atualizar ambiente e reiniciar; rebuild só se a imagem/configuração de build mudar. |
+| URL da API do frontend | Alterar `VITE_API_URL` antes do build do frontend. |
 
-O frontend **já consome esta API** (não usa mais mocks). O cliente HTTP fica em
-`frontend/src/lib/api.ts` (`api.get/post/put/del`), que anexa o
-`Authorization: Bearer <token>` e derruba a sessão em `401`. O login
-(`store/authStore.ts`) guarda o `token` via `persist` do Zustand; a leitura de
-dados usa o hook `useApi` + o componente `<Async>`. A base da URL vem de
-`VITE_API_URL` (padrão `http://localhost:4000`).
-
-## Estrutura
-
-```
-src/
-├── index.ts              # app Express: CORS, JSON, monta os routers, handlers de erro
-├── config/
-│   └── env.ts            # variáveis de ambiente (falha rápido se faltar algo crítico)
-├── types/                # contratos da API, UM arquivo por domínio + barril
-│   ├── index.ts          #   re-exporta tudo (export *) — ponto único de import
-│   ├── common.ts         #   Tone, IconKey (primitivos compartilhados)
-│   └── auth·sales·reports·products·… .ts   # um por domínio; o front importa via @contracts
-├── lib/                  # utilitários sem estado (não conhecem Express nem o banco)
-│   ├── jwt.ts            #   assina/verifica JWT
-│   ├── http.ts           #   HttpError + helpers (401, 402, 404, 429…)
-│   ├── async-handler.ts  #   captura erros de handlers async
-│   ├── billing.ts        #   deriva "assinatura ativa?" de paid_until
-│   └── rate-limit.ts     #   freio de força-bruta no login
-├── middleware/
-│   ├── auth.ts           #   requireAuth · loadCurrentUser · requireAdmin · requireTenantAdmin
-│   ├── subscription.ts   #   402 quando a assinatura vence
-│   └── error.ts          #   404 + handler de erro central
-├── db/                   # ÚNICA camada que fala com o banco
-│   ├── pool.ts           #   pool pg (conecta como a role whitelabel_app)
-│   ├── tenant-context.ts #   withTenant(): transação + SET app.current_tenant; withTransaction
-│   └── repositories/     #   um repositório por domínio (getX/createX/updateX/deleteX)
-└── routes/               # endpoints HTTP (routers) — um sub-router por domínio
-    ├── auth.ts           #   /api/auth/login, /api/auth/me
-    ├── data/             #   /api/* (dados do tenant): index.ts compõe + <domínio>.routes.ts
-    └── admin/            #   /api/admin/* (dono da plataforma): index.ts + accounts/analytics.routes.ts
-
-db/migrations/            # construção do banco: schema (0001), segurança/RLS (0002), seed (0003)… (0001–0018)
-```
-
-## Distribuição de responsabilidades (pastas de `src/`)
-
-Cada pasta de `src/` tem **uma** função no fluxo de uma requisição. De fora para
-dentro, uma chamada atravessa `routes → middleware → db`, apoiada por `lib`,
-`types` e `config`:
-
-- **`routes/`** — a porta de entrada HTTP. Define os endpoints (Express Routers),
-  valida o corpo (zod) e orquestra a resposta. Não contém acesso a dados: delega
-  aos repositórios. Um sub-router por domínio; o `index.ts` de cada grupo aplica os
-  middlewares (na ordem certa) e monta os sub-routers.
-- **`middleware/`** — a "esteira" que toda requisição atravessa antes do handler:
-  autenticação (`auth.ts`), bloqueio por assinatura (`subscription.ts`) e a
-  tradução central de erros para JSON (`error.ts`).
-- **`db/`** — a **única** camada que conversa com o PostgreSQL: `pool.ts`
-  (conexões), `tenant-context.ts` (transação + isolamento por tenant via RLS) e
-  `repositories/` (um arquivo por domínio, todas as queries parametrizadas).
-- **`lib/`** — peças reutilizáveis e **sem estado**, usadas por várias camadas
-  (JWT, HttpError, billing, rate-limit…). Não conhecem Express nem o banco.
-- **`types/`** — os contratos de dados da API (o "formato" das respostas), por
-  domínio. É a **fonte única** que o frontend consome via alias `@contracts`.
-- **`config/`** — lê as variáveis de ambiente uma vez, com falha rápida se faltar
-  algo crítico (`JWT_SECRET`, `DATABASE_URL`).
-- **`index.ts`** — o ponto de entrada: cria o app Express, aplica CORS/JSON, monta
-  os três grupos de rotas (`/api/auth`, `/api/admin`, `/api`) e os handlers de erro.
-
-**1Regra de ouro:** só `db/repositories/` fala com o banco, e sempre com queries
-parametrizadas — é o que fecha a porta para **SQL Injection**.
-
-## Revisão do backend (limpeza, segurança e eficiência)
-
-Revisão do código do backend com o mesmo espírito da do banco (ver
-`db/README.md` → "Dívidas técnicas / TODO"): itens concretos e de baixo risco já
-aplicados; o resto registrado como próximo passo, com o trade-off. Nada é
-bloqueante hoje.
-
-### O que está bom (manter)
-
-- **Isolamento por tenant à prova de esquecimento.** `withTenant` abre uma
-  transação e faz `SET LOCAL app.current_tenant = <tenantId do JWT>`; o RLS do
-  banco filtra tudo. O `tenantId` vem **sempre** do JWT assinado, nunca do corpo.
-- **Consultas 100% parametrizadas.** Nenhuma entrada do usuário é concatenada em
-  SQL em nenhum repositório (nem o `tenantId` do `SET`).
-- **Validação na borda com zod + tipos derivados** (`z.infer`) — validação e
-  tipagem nunca divergem; os limites espelham as `CHECK` do banco.
-- **Segredos tratados com cuidado.** Senhas com bcrypt custo 12 (o banco nunca vê
-  a senha em claro); o hash nunca sai nas respostas (`toPublicUser`); o login usa
-  comparação de tempo constante mesmo sem usuário (não vaza "e-mail existe" por
-  tempo).
-- **Defesa em camadas nas ações de admin de plataforma.** `requireAdmin` (flag do
-  JWT) **e** as funções `app.admin_*` revalidam o papel do ator no banco.
-- **Erros centralizados e async seguro** (`errorHandler` + `asyncHandler`), sem
-  vazar stack para o cliente; `pool` com teto de conexões e timeouts.
-
-### ✅ Feitos (aplicados nesta revisão)
-
-- **[Segurança] `JWT_SECRET` falha rápido em produção.** Antes, faltando o
-  segredo em produção a API só emitia um *warning* e subia com o padrão inseguro
-  (qualquer um poderia forjar um token de admin). Agora `config/env.ts` faz
-  `process.exit(1)`, igual ao `DATABASE_URL`.
-- **[Segurança/custo] Limite de corpo escopado.** O teto de ~2MB (necessário só
-  para a logo em data URI) valia para toda a API, inclusive o `/login` não
-  autenticado. Agora os 2MB ficam só em `/api/admin`; o restante usa 256KB
-  (`index.ts`), reduzindo a superfície de DoS por payload gigante.
-- **[Eficiência] Módulos gravados num só INSERT.** `updateTenantConfig` fazia um
-  `INSERT` por módulo num laço (N idas ao banco). Agora é um único
-  `INSERT … SELECT unnest($2::text[], $3::boolean[], $4::int[])` — uma ida,
-  texto SQL fixo, tudo parametrizado.
-- **[Segurança] Rate-limit no `/api/auth/login`.** Freio de brute force por IP
-  (10 tentativas / 15 min) em `lib/rate-limit.ts` (em memória, sem dependência
-  nova), aplicado à rota de login. Complementa o bcrypt (encarece cada palpite) +
-  comparação de tempo constante. Chaveia por IP (não por e-mail, que permitiria
-  trancar a conta de uma vítima). Atrás de proxy, configure `TRUST_PROXY` para o
-  `req.ip` ser o do cliente. Limitação: estado por instância — para escala
-  horizontal, trocar por store compartilhado (Redis).
-- **[Segurança] Revogação imediata do usuário (claims não ficam mais "presas").**
-  Novo middleware `loadCurrentUser` (`middleware/auth.ts`) revalida o usuário no
-  banco a **cada requisição** das rotas de dados e de admin: se o login foi
-  **excluído**, responde 401 na hora; o papel (`is_*_admin`) é **relido do banco**
-  e sobrescreve o do token, então **rebaixar/promover** vale já no próximo request
-  (o JWT deixa de ser a fonte da verdade para autorização). Fecha a brecha em que
-  um login excluído ou um admin rebaixado mantinha acesso/poder por até 7 dias.
-  Custo: uma consulta indexada por requisição — trade-off consciente da revogação
-  instantânea (Opção 3); em escala, evoluir para refresh tokens.
-  - *Nota:* a otimização anterior que embutia `paidUntil` no JWT (para pular a
-    consulta de assinatura) foi **substituída** por esta — como agora relemos o
-    usuário a cada requisição, a assinatura viaja nessa **mesma** consulta única
-    (existência + papel + assinatura em `getCurrentUser`), e
-    `requireActiveSubscription` só lê `req.billing`, sem tocar no banco.
-- **[Consistência] Ledger de cobrança agora é atômico.** `createAccount` e
-  `creditMonths` rodam a mudança na conta **e** o registro no ledger na MESMA
-  transação (`withTransaction`, em `db/tenant-context.ts`). Se o registro da
-  cobrança falhar, a criação/renovação inteira é desfeita — sem conta sem cobrança
-  (era best-effort: podia deixar a conta sem o evento no ledger).
-
-### ⏳ Pendentes (trade-off a decidir)
-
-- **[Robustez] Geração de `id` por tenant via `max(id)+1`.** Em produtos, clientes,
-  tarefas e chamados, dois `POST` simultâneos no **mesmo** tenant podem ler o mesmo
-  `max` e colidir na PK (um recebe 500). Raro (mesma conta, concorrência exata).
-  Resolver com sequência por tenant ou advisory lock se a concorrência crescer.
-- **[Produção] Endurecimentos gerais.** Cabeçalhos de segurança (helmet), logger
-  estruturado (hoje é `console.*`) e *shutdown* gracioso (drenar o pool no
-  `SIGTERM`). Nada bloqueante; endurecem para produção.
-- **[Config] Trocar a senha placeholder da role `whitelabel_app`** (em
-  `0002_security.sql` e no `DATABASE_URL`) por um segredo forte.
-
-## Modularização por domínio (2026-07-12)
-
-Sequência de refactors para deixar o código mais legível, **sem mudar
-comportamento**. Tudo verificado com `tsc` + build; as rotas conferidas por
-introspecção do router (mesmos método/caminho de antes):
-
-- **Relatórios — seção "Melhores Clientes".** `reports.repo.ts` passou a agregar,
-  a partir das **vendas** do período, um ranking de clientes (receita / lucro /
-  nº de compras, ticket médio, última compra e "o que comprou"); vendas sem e-mail
-  caem numa linha "Sem identificação". Novos contratos `CustomerRank` /
-  `CustomerProduct` (em `types/reports.ts`).
-- **`types/` dividido por domínio.** O antigo `types/index.ts` (~514 linhas) virou
-  um arquivo por domínio (`auth.ts`, `sales.ts`, `reports.ts`, `common.ts` =
-  Tone/IconKey, …) com `index.ts` como **barril** (`export *`). Todos os imports
-  (do backend e o alias `@contracts` do frontend) seguem apontando para o mesmo
-  `index.ts` — nada quebrou.
-- **`routes/data.ts` → `routes/data/`.** Um sub-router por domínio
-  (`products.routes.ts`, `calendar.routes.ts`, …) + `helpers.ts`
-  (`tenant`/`uid`/`intId`) + `index.ts` (raiz de composição). A **ordem** dos
-  middlewares foi preservada — em especial `GET /config` **antes** do bloqueio de
-  assinatura (o front precisa ler `billing` mesmo com a conta expirada).
-- **`routes/admin.ts` → `routes/admin/`.** Mesmo padrão, menor:
-  `accounts.routes.ts` (contas/logins/crédito) + `analytics.routes.ts`
-  (financeiro) + `helpers.ts` (`actor`/`guard`/`translatePgError`) + `index.ts`.
-- **Fonte única de tipos front↔back.** O frontend deixou de redefinir interfaces
-  iguais às do backend; agora importa de `@contracts` (alias →
-  `backend/src/types/index.ts`). **Convenção para um tipo novo:** criar/editar o
-  arquivo de domínio e, se for arquivo novo, adicionar `export *` no `index.ts`.
-
-**Convenção de rotas** (vale para os três grupos): um sub-router por domínio em
-`<domínio>.routes.ts`, um `helpers.ts` para o que é compartilhado, e um `index.ts`
-que aplica os middlewares e monta os sub-routers.
+Nunca edite uma migration já aplicada. A ordem do schema é parte do contrato operacional.

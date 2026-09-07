@@ -1,1 +1,0 @@
-import{j as o}from"./index-DOcTnL8b.js";import{C as r}from"./Catalog-BTv0oYFB.js";import"./PageHeader-D5ICAcEV.js";import"./SearchInput-n_vhrJnV.js";import"./Badge-5rRFovHS.js";import"./useResourceForm-BIBTyVmE.js";import"./x-DeRjoa6S.js";import"./FormActions-CL8kP5-Q.js";import"./plus-CapJYXVn.js";function f(){return o.jsx(r,{kind:"servico"})}export{f as default};
