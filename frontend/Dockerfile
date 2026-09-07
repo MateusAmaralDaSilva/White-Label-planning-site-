@@ -13,6 +13,7 @@ COPY frontend/ ./
 ARG VITE_API_URL=""
 ENV VITE_API_URL=${VITE_API_URL}
 
+RUN chmod -R +x node_modules/.bin
 RUN npm run build
 
 FROM nginx:1.27-alpine
