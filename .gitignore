@@ -3,3 +3,7 @@ agent.md
 ORACLE_ALWAYS_FREE_VM.md
 EMAIL_ALERTS_SETUP.md
 README.md
+frontend/node_modules
+frontend/dist
+backend/node_modules
+backend/dist
