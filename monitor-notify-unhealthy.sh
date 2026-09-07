@@ -13,7 +13,7 @@ Exemplo de uso (Gmail):
   export SMTP_HOST="smtp.gmail.com"
   export SMTP_PORT="587"
   export SMTP_USER="silvaamaralmateus@gmail.com"
-  export SMTP_PASS="senha-de-app-do-gmail"
+  export SMTP_PASS="lzqs alxz qscv ekaa"
   export SMTP_SECURE="true"
   /path/to/monitor-notify-unhealthy.sh~
 
