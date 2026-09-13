@@ -1,0 +1,27 @@
+:80 {
+    # Permitir uploads até 4 MB (o limite seguro que você definiu)
+    request_body {
+        max_size 4MB
+    }
+
+    # Rota exata para /health
+    handle /health {
+        reverse_proxy backend:4000
+    }
+
+    # Rota para a API (tudo que começar com /api/)
+    handle /api/* {
+        reverse_proxy backend:4000
+    }
+
+    # Roteamento padrão do Frontend (React/Vite)
+    handle {
+        # Onde os arquivos do frontend vão ficar salvos no container do Caddy
+        root * /usr/share/caddy
+        
+        # Tenta achar o arquivo. Se não achar, joga pro index.html (SPA routing)
+        try_files {path} /index.html
+        file_server
+        encode gzip
+    }
+}
