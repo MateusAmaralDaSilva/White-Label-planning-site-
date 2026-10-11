@@ -43,4 +43,4 @@ $$;
 comment on function app.admin_list_users is
   'Lista os logins (usuários) de um tenant, sem expor o hash de senha. Exige admin de plataforma.';
 
-grant execute on function app.admin_list_users(text, text) to whitelabel_app;
+grant execute on function app.admin_list_users(text, text) to aubi_app;

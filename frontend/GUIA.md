@@ -29,7 +29,7 @@ tradicional.
 Duas características centrais do produto (detalhadas adiante):
 
 - **Modular**: cada empresa liga/desliga e reordena "módulos" (Produtos, Vendas…).
-- **Whitelabel**: a mesma aplicação veste a cara de cada empresa (nome, logo,
+- **Aubi**: a mesma aplicação veste a cara de cada empresa (nome, logo,
   cores).
 
 ---
@@ -40,7 +40,7 @@ Duas características centrais do produto (detalhadas adiante):
 | ---------------------------- | ---------------------------------------------------------- | ------------------------------------------------ |
 | **Vite**               | "Servidor de desenvolvimento" + empacotador                | Rápido, recarrega na hora que você salva (HMR) |
 | **React + TypeScript** | Montar a interface com componentes tipados                 | Padrão de mercado; os tipos pegam erros cedo    |
-| **Tailwind CSS**       | Estilizar usando "classes utilitárias"                    | Tokens de cor → tema trocável (whitelabel)     |
+| **Tailwind CSS**       | Estilizar usando "classes utilitárias"                    | Tokens de cor → tema trocável (aubi)     |
 | **Zustand**            | Guardar estado**global** (compartilhado entre telas) | Simples, quase sem código                       |
 | **React Router**       | Trocar de tela conforme a URL                              | Roteamento numa SPA                              |
 | **@dnd-kit**           | Arrastar para reordenar módulos                           | Drag & drop pronto                               |
@@ -120,7 +120,7 @@ Esse array é a **fonte de verdade**: a **sidebar**, as **rotas** (`App.tsx`) e 
 a pasta + uma linha no registry. Nenhuma lista de rotas separada para manter em
 sincronia.
 
-### 4.2. Tokens de tema — "a mesma casa, decoração trocável" (o whitelabel)
+### 4.2. Tokens de tema — "a mesma casa, decoração trocável" (o aubi)
 
 Nenhuma cor é escrita "na mão" (`#4F78FF`) dentro dos componentes. Eles usam
 **tokens semânticos**: `bg-surface`, `text-ink`, `bg-accent`, `text-danger`…
@@ -128,7 +128,7 @@ Nenhuma cor é escrita "na mão" (`#4F78FF`) dentro dos componentes. Eles usam
 Cada token aponta para uma **variável CSS** cujo valor é definido pelo **tema
 ativo** (`config/themes/`). Trocar o tema (ou a cor da marca de um cliente) =
 trocar os **valores** dessas variáveis — **nenhum componente muda**. É esse o
-mecanismo _whitelabel_: mesma "casa" (componentes), decoração (cores) trocável.
+mecanismo _aubi_: mesma "casa" (componentes), decoração (cores) trocável.
 
 ### 4.3. Zustand — "um quadro branco compartilhado"
 
@@ -246,7 +246,7 @@ seu próprio arquivo.
 `pages/login/` + `store/authStore.ts`. O token fica guardado e é anexado a cada
 requisição por `lib/api.ts`. `GET /api/auth/me` reidrata a sessão no reload.
 
-### 7.2. Whitelabel (marca, tema, módulos)
+### 7.2. Aubi (marca, tema, módulos)
 
 `hooks/useBootstrap.ts` aplica a config do tenant. A **marca** (nome/sigla/logo)
 vem do `brandStore`; o **tema** do `themeStore` (a escolha manual do usuário vence
@@ -369,7 +369,7 @@ aparecerem. A URL da API vem de `VITE_API_URL` no `.env` (padrão
 - **Seletor**: função que lê só um pedaço da store (evita redesenho à toa).
 - **Rota**: associação entre uma URL e a tela que ela mostra.
 - **Token de design**: nome semântico de cor (`accent`, `ink`) que aponta para uma
-  variável CSS definida pelo tema — a base do whitelabel.
+  variável CSS definida pelo tema — a base do aubi.
 - **Tema**: conjunto de valores para os tokens (claro/escuro/…).
 - **Módulo**: funcionalidade autocontida, declarada no `registry`.
 - **Bootstrap**: o carregamento inicial da config do tenant após o login.

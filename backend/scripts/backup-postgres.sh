@@ -2,13 +2,13 @@
 set -eu
 
 BACKUP_DIR=${BACKUP_DIR:-/backups}
-BACKUP_PREFIX=${BACKUP_PREFIX:-whitelabel}
+BACKUP_PREFIX=${BACKUP_PREFIX:-aubi}
 RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
 INTERVAL_SECONDS=${BACKUP_INTERVAL_SECONDS:-86400}
 
 mkdir -p "$BACKUP_DIR"
 
-until pg_isready -h "${PGHOST:-db}" -U "${PGUSER:-postgres}" -d "${PGDATABASE:-whitelabel}"; do
+until pg_isready -h "${PGHOST:-db}" -U "${PGUSER:-postgres}" -d "${PGDATABASE:-aubi}"; do
   sleep 5
 done
 
@@ -19,7 +19,7 @@ while true; do
 
   echo "[backup] creating $target"
   if pg_dump -Fc --no-owner --no-privileges -h "${PGHOST:-db}" -U "${PGUSER:-postgres}" \
-    -d "${PGDATABASE:-whitelabel}" -f "$temporary"; then
+    -d "${PGDATABASE:-aubi}" -f "$temporary"; then
     pg_restore --list "$temporary" >/dev/null
     mv -f "$temporary" "$target"
     echo "[backup] completed $target"

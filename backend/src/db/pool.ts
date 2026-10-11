@@ -2,7 +2,7 @@ import pg from 'pg'
 import { env } from '../config/env.js'
 
 /**
- * Pool de conexões PostgreSQL. A API conecta como a role `whitelabel_app`
+ * Pool de conexões PostgreSQL. A API conecta como a role `aubi_app`
  * (menor privilégio, sujeita ao RLS) — NUNCA como o dono do banco. Ver
  * db/migrations/0002_security.sql.
  *

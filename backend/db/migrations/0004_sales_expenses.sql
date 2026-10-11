@@ -73,6 +73,6 @@ begin
   end if;
 end $$;
 
-grant select, insert, update, delete on app.sales, app.expenses to whitelabel_app;
+grant select, insert, update, delete on app.sales, app.expenses to aubi_app;
 -- Cobre as sequences das colunas identity criadas acima.
-grant usage, select on all sequences in schema app to whitelabel_app;
+grant usage, select on all sequences in schema app to aubi_app;

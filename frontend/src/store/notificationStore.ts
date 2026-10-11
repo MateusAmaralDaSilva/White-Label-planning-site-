@@ -19,7 +19,7 @@ export const useNotificationStore = create<NotificationState>()(
       markRead: (ids) =>
         set((state) => ({ readIds: [...new Set([...state.readIds, ...ids])] })),
     }),
-    { name: 'whitelabel-notifications' },
+    { name: 'aubi-notifications' },
   ),
 )
 

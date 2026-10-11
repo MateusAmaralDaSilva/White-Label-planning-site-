@@ -1,4 +1,4 @@
-# Guia de subida — Plataforma Whitelabel
+# Guia de subida — Plataforma Aubi
 
 Como colocar o sistema no ar, focado **no que o código exige** (não em provedor
 específico: vale local, VPS, container, PaaS…). São **três peças**:
@@ -11,7 +11,7 @@ específico: vale local, VPS, container, PaaS…). São **três peças**:
 ```
 
 - **PostgreSQL** — dados, com isolamento por tenant via RLS. Duas roles: o **dono**
-  (aplica as migrations) e a **`whitelabel_app`** (a API conecta com esta).
+  (aplica as migrations) e a **`aubi_app`** (a API conecta com esta).
 - **Backend** (`backend/`) — API Express, **só JSON** (não serve arquivos estáticos).
 - **Frontend** (`frontend/`) — SPA React que **compila para arquivos estáticos**
   (`dist/`), servidos por qualquer host estático. Fala com a API por HTTP.
@@ -40,17 +40,17 @@ específico: vale local, VPS, container, PaaS…). São **três peças**:
 
 Rode as migrations **como o DONO do banco** (superusuário, ex.: `postgres`) — elas
 criam extensões, roles, funções `SECURITY DEFINER` e políticas de RLS. **Nunca**
-aplique como `whitelabel_app`.
+aplique como `aubi_app`.
 
 ```bash
-createdb whitelabel
+createdb aubi
 
 # aplique 0001 → 0019 EM ORDEM (0003_seed é opcional — dados de demonstração)
-psql -U postgres -d whitelabel -f db/migrations/0001_schema.sql
-psql -U postgres -d whitelabel -f db/migrations/0002_security.sql      # cria a role whitelabel_app + RLS
-psql -U postgres -d whitelabel -f db/migrations/0003_seed.sql          # OPCIONAL (demo)
+psql -U postgres -d aubi -f db/migrations/0001_schema.sql
+psql -U postgres -d aubi -f db/migrations/0002_security.sql      # cria a role aubi_app + RLS
+psql -U postgres -d aubi -f db/migrations/0003_seed.sql          # OPCIONAL (demo)
 # … 0004 até 0018 …
-psql -U postgres -d whitelabel -f db/migrations/0019_verify_credentials.sql
+psql -U postgres -d aubi -f db/migrations/0019_verify_credentials.sql
 ```
 
 A lista completa e ordenada está em **`backend/db/README.md`** (seção "Como
@@ -63,15 +63,15 @@ completo, ex.: `& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres …`
 
 ### 1.2. Definir a senha da role da aplicação
 
-A `0002` cria a role `whitelabel_app` com uma **senha placeholder**. Troque-a e use
+A `0002` cria a role `aubi_app` com uma **senha placeholder**. Troque-a e use
 a mesma no `DATABASE_URL` do backend:
 
 ```sql
 -- como o dono do banco
-alter role whitelabel_app with password 'UMA-SENHA-FORTE-AQUI';
+alter role aubi_app with password 'UMA-SENHA-FORTE-AQUI';
 ```
 
-A `whitelabel_app` é de **menor privilégio** (`NOSUPERUSER`, `NOBYPASSRLS`, sem DDL).
+A `aubi_app` é de **menor privilégio** (`NOSUPERUSER`, `NOBYPASSRLS`, sem DDL).
 É isso que garante que o RLS sempre se aplique — por isso a API **tem que** conectar
 com ela, e não com o dono.
 
@@ -96,7 +96,7 @@ Copie o exemplo e ajuste: `cp backend/.env.example backend/.env`.
 
 | Variável          | Obrigatória         | O que é / cuidado                                                                                                                                                                                                                                 |
 | ------------------ | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`   | **Sim**        | `postgres://whitelabel_app:SENHA@host:5432/whitelabel`. **Role da app, não o dono.** Sem ela a API **não sobe** (falha rápido).                                                                                                   |
+| `DATABASE_URL`   | **Sim**        | `postgres://aubi_app:SENHA@host:5432/aubi`. **Role da app, não o dono.** Sem ela a API **não sobe** (falha rápido).                                                                                                   |
 | `JWT_SECRET`     | **Sim (prod)** | Segredo forte e aleatório. Com`NODE_ENV=production` **e** `JWT_SECRET` ausente, a API aborta. ⚠️ Ela **não** detecta se você deixou o *valor placeholder* — troque de verdade (quem tiver o segredo forja token de admin). |
 | `NODE_ENV`       | Recomendado          | Defina`production` no deploy — habilita o fail-fast do `JWT_SECRET` e o modo de produção do Express.                                                                                                                                        |
 | `CORS_ORIGINS`   | **Sim (prod)** | Lista separada por vírgula das origens do**frontend** (esquema+host+porta exatos, ex.: `https://app.seudominio.com`). Origem fora da lista é bloqueada.                                                                                  |
@@ -156,8 +156,8 @@ Para testar o build localmente: `npm run preview` (serve o `dist/` em `:4173`).
 
 ## 4. Checklist de segurança antes de produção
 
-- [ ] `DATABASE_URL` usa **`whitelabel_app`** (não o dono do banco).
-- [ ] Senha da role `whitelabel_app` trocada (§1.2) e igual no `DATABASE_URL`.
+- [ ] `DATABASE_URL` usa **`aubi_app`** (não o dono do banco).
+- [ ] Senha da role `aubi_app` trocada (§1.2) e igual no `DATABASE_URL`.
 - [ ] `JWT_SECRET` = valor forte/aleatório (não o placeholder) + `NODE_ENV=production`.
 - [ ] Senha do admin de plataforma trocada (§1.3) — se usou o seed.
 - [ ] `CORS_ORIGINS` lista só as origens reais do frontend.
@@ -188,12 +188,12 @@ Para testar o build localmente: `npm run preview` (serve o `dist/` em `:4173`).
   no deploy". Rebuild ao mudar a URL da API.
 - **Frontend depende de `backend/src/types` no build** (alias `@contracts`). Buildar o
   front sem a pasta do backend ao lado falha no `tsc`.
-- **Migrations rodam como o dono; a API conecta como `whitelabel_app`.** Misturar os
+- **Migrations rodam como o dono; a API conecta como `aubi_app`.** Misturar os
   dois quebra o RLS (o dono tem BYPASS implícito em algumas operações) ou nega
   permissões à API.
 - **A ordem das migrations importa** e é sequencial (0001→0019). Aplique todas; em
   banco existente, só as novas.
-- **`whitelabel_app` não lê a coluna `password_hash`** (desde a 0019) — o login é
+- **`aubi_app` não lê a coluna `password_hash`** (desde a 0019) — o login é
   verificado dentro do banco por `app.verify_credentials`. Se você criar scripts que
   leem `app.users` com essa role, não selecione `password_hash` (vai dar permissão
   negada — de propósito).
@@ -213,13 +213,13 @@ Para testar o build localmente: `npm run preview` (serve o `dist/` em `:4173`).
 
 Diferente das contas de cliente, **o admin geral não tem tela para editar a si
 mesmo** — ele é uma linha em `app.users` com `is_platform_admin = true`. Essas
-operações são **SQL, como o DONO do banco** (a role `whitelabel_app` nem enxerga
+operações são **SQL, como o DONO do banco** (a role `aubi_app` nem enxerga
 usuários fora de um contexto de tenant).
 
 **Trocar o seu e-mail de admin:**
 
 ```sql
--- como o DONO do banco (ex.: -U postgres), NÃO como whitelabel_app
+-- como o DONO do banco (ex.: -U postgres), NÃO como aubi_app
 update app.users
    set email = 'novo-email@dominio.com'
  where email = 'silvaamaralmateus@gmail.com';   -- e-mail atual
@@ -318,8 +318,8 @@ Para proteção contra desastre, copie os arquivos para OCI Object Storage ou
 outro armazenamento externo e teste periodicamente a restauração:
 
 ```bash
-docker compose exec -T backup pg_restore --list /backups/whitelabel-AAAAMMDD.dump
+docker compose exec -T backup pg_restore --list /backups/aubi-AAAAMMDD.dump
 ```
 
 Não exponha PostgreSQL na internet. O serviço de backup usa a senha do usuário
-Postgres apenas dentro da rede Docker e não altera o papel `whitelabel_app`.
+Postgres apenas dentro da rede Docker e não altera o papel `aubi_app`.

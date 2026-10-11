@@ -11,13 +11,13 @@ arquivos reais — sempre citados — para ver na prática.
 
 ## 1. O que é esta aplicação (a visão de cima)
 
-É uma plataforma **whitelabel multi-tenant**. Traduzindo:
+É uma plataforma **aubi multi-tenant**. Traduzindo:
 
 - **Multi-tenant** = _um mesmo sistema_ atende _várias empresas_ ao mesmo tempo.
   Cada empresa é um **tenant** (inquilino). Pense num prédio: o código é o
   prédio, cada empresa é um apartamento. Todos moram no mesmo prédio, mas ninguém
   entra no apartamento do outro.
-- **Whitelabel** = cada empresa vê o sistema com a _sua própria cara_ (nome,
+- **Aubi** = cada empresa vê o sistema com a _sua própria cara_ (nome,
   logo, cores, módulos ativos). O mesmo código, aparências diferentes.
 
 O backend é o **cérebro**: ele guarda os dados, decide quem pode ver o quê e
@@ -227,7 +227,7 @@ texto do usuário dentro do SQL. É isso que fecha a porta para **SQL Injection*
 
 - **`GET /api/config`**: o "bootstrap" logo após o login — marca (nome, logo,
   cores), tema, módulos ativos e estado da assinatura. É o que permite o
-  whitelabel: a mesma tela se veste conforme o tenant.
+  aubi: a mesma tela se veste conforme o tenant.
 - **`PUT /api/config`**: salva tema e ordem/visibilidade dos módulos.
 
 ### 6.3. Módulos de negócio (`routes/data/` + repos)
@@ -281,7 +281,7 @@ A ideia central: **não depender de uma única proteção**. Se uma falhar, outr
 segura. Camadas deste projeto:
 
 1. **RLS por tenant** — o banco recusa linhas de outro tenant (§3.3).
-2. **Role sem privilégios** — a API conecta no banco como `whitelabel_app`, uma
+2. **Role sem privilégios** — a API conecta no banco como `aubi_app`, uma
    role que **não é dona das tabelas**, não pode `DROP`, não pode burlar o RLS.
    Mesmo uma invasão esbarra no que ela _não pode_ fazer. (`db/pool.ts`,
    `0002_security.sql`.)

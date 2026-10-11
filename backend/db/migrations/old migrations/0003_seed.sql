@@ -19,7 +19,7 @@ set client_encoding to 'UTF8';
 
 -- ── Tenants ───────────────────────────────────────────────────────────────
 insert into app.tenants (id, brand_name, brand_mark, brand_tagline, theme_id) values
-  ('teste',    'Whitelabel',    'WL', 'Uma plataforma. Infinitas possibilidades.', 'light'),
+  ('teste',    'Aubi',    'WL', 'Uma plataforma. Infinitas possibilidades.', 'light'),
   ('clinica', 'Clínica Saúde', 'CS', 'Cuidado do começo ao fim.',                 'dark')
 on conflict (id) do nothing;
 

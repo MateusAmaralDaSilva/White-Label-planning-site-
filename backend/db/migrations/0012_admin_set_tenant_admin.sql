@@ -47,7 +47,7 @@ $$;
 comment on function app.admin_list_users is
   'Lista os logins de um tenant (com is_tenant_admin), sem expor o hash. Exige admin de plataforma.';
 
-grant execute on function app.admin_list_users(text, text) to whitelabel_app;
+grant execute on function app.admin_list_users(text, text) to aubi_app;
 
 -- ── admin_set_tenant_admin: promove/rebaixa um login a admin do tenant ────────
 create or replace function app.admin_set_tenant_admin(
@@ -81,4 +81,4 @@ $$;
 comment on function app.admin_set_tenant_admin is
   'Define se um login é administrador do tenant. Exige admin de plataforma.';
 
-grant execute on function app.admin_set_tenant_admin(text, text, text, boolean) to whitelabel_app;
+grant execute on function app.admin_set_tenant_admin(text, text, text, boolean) to aubi_app;

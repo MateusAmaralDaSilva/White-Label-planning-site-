@@ -109,7 +109,7 @@ comment on function app.admin_create_account is
 grant execute on function app.admin_create_account(
   text, text, text, text, text, text, citext, text, text, text,
   timestamptz, integer, text
-) to whitelabel_app;
+) to aubi_app;
 
 -- Repara tenants já existentes que ainda não têm dashboard. A função é
 -- idempotente e não substitui dados existentes.

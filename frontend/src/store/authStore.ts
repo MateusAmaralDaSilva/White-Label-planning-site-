@@ -43,6 +43,6 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => set({ isAuthenticated: false, token: null, user: null, userEmail: '' }),
     }),
-    { name: 'whitelabel-auth' },
+    { name: 'aubi-auth' },
   ),
 )

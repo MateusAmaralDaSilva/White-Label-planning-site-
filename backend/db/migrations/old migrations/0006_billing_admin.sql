@@ -35,7 +35,7 @@
 --   • Nenhuma entrada é concatenada em texto SQL: tudo entra por parâmetro ($1…).
 --   • O hash da senha é calculado no BACKEND (bcryptjs) e chega pronto; o banco
 --     nunca vê a senha em texto puro. As funções recebem `p_password_hash`.
---   • `EXECUTE` das funções é concedido só à role da aplicação `whitelabel_app`
+--   • `EXECUTE` das funções é concedido só à role da aplicação `aubi_app`
 --     (que segue NOSUPERUSER / NOBYPASSRLS). A role NÃO é dona das funções, então
 --     não pode alterá-las nem contornar as checagens internas.
 --
@@ -320,12 +320,12 @@ comment on function app.admin_list_accounts is
 -- grant explícito.) A role continua sem poder ALTERAR as funções — não é dona.
 -- find_user_for_auth foi dropada e recriada acima, então o grant de 0002 se
 -- perdeu — reconcede o EXECUTE à role da aplicação.
-grant execute on function app.find_user_for_auth(citext)                           to whitelabel_app;
-grant execute on function app.is_platform_admin(text)                              to whitelabel_app;
-grant execute on function app.admin_create_account(text, text, text, text, text, text, citext, text, text, text, timestamptz) to whitelabel_app;
-grant execute on function app.admin_add_user(text, text, citext, text, text)       to whitelabel_app;
-grant execute on function app.admin_credit_months(text, text, integer, text)       to whitelabel_app;
-grant execute on function app.admin_list_accounts(text)                            to whitelabel_app;
+grant execute on function app.find_user_for_auth(citext)                           to aubi_app;
+grant execute on function app.is_platform_admin(text)                              to aubi_app;
+grant execute on function app.admin_create_account(text, text, text, text, text, text, citext, text, text, text, timestamptz) to aubi_app;
+grant execute on function app.admin_add_user(text, text, citext, text, text)       to aubi_app;
+grant execute on function app.admin_credit_months(text, text, integer, text)       to aubi_app;
+grant execute on function app.admin_list_accounts(text)                            to aubi_app;
 
 -- ============================================================================
 -- SEED do administrador de plataforma

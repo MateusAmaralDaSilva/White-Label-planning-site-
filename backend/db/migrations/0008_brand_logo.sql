@@ -163,8 +163,8 @@ comment on function app.admin_list_accounts is
 -- ── Grants (recriados perdem o grant de 0002/0006) ────────────────────────────
 grant execute on function
   app.admin_create_account(text, text, text, text, text, text, text, citext, text, text, text, timestamptz)
-  to whitelabel_app;
+  to aubi_app;
 grant execute on function
   app.admin_update_account(text, text, text, text, text, text, text)
-  to whitelabel_app;
-grant execute on function app.admin_list_accounts(text) to whitelabel_app;
+  to aubi_app;
+grant execute on function app.admin_list_accounts(text) to aubi_app;

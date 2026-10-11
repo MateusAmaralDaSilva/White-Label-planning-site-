@@ -1,5 +1,5 @@
 -- ============================================================================
--- 0001_schema.sql — Esquema do banco whitelabel (PostgreSQL)
+-- 0001_schema.sql — Esquema do banco aubi (PostgreSQL)
 -- ----------------------------------------------------------------------------
 -- Materializa no banco o modelo que hoje vive em `src/types/index.ts` e nos
 -- mocks de `src/data/*.ts`. Cada tabela de negócio é escopada por tenant

@@ -42,4 +42,4 @@ $$;
 comment on function app.find_user_for_auth(citext) is
   'Busca de usuário para login. Único ponto que expõe o password_hash. Devolve id, tenant e papéis.';
 
-grant execute on function app.find_user_for_auth(citext) to whitelabel_app;
+grant execute on function app.find_user_for_auth(citext) to aubi_app;

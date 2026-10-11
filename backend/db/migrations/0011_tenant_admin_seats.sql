@@ -3,12 +3,12 @@
 -- ----------------------------------------------------------------------------
 -- Dois recursos ligados:
 --
---   1. ADMINISTRADOR DO TENANT. O dono da empresa que recebe o whitelabel pode
+--   1. ADMINISTRADOR DO TENANT. O dono da empresa que recebe o aubi pode
 --      gerenciar os LOGINS da própria conta (criar/excluir), sem depender do
 --      administrador de plataforma. Marca-se com `users.is_tenant_admin`. O
 --      primeiro login criado ao provisionar a conta já vem como admin do tenant.
 --
---   2. LIMITE DE USUÁRIOS (assentos). O dono do whitelabel define, por conta,
+--   2. LIMITE DE USUÁRIOS (assentos). O dono do aubi define, por conta,
 --      quantos logins ela pode ter (`tenants.max_users`; NULL = ilimitado). O
 --      admin do tenant não consegue ultrapassar esse número.
 --
@@ -57,7 +57,7 @@ $$;
 comment on function app.find_user_for_auth(citext) is
   'Busca de usuário para login. Único ponto que expõe o password_hash. Devolve papéis e assinatura.';
 
-grant execute on function app.find_user_for_auth(citext) to whitelabel_app;
+grant execute on function app.find_user_for_auth(citext) to aubi_app;
 
 -- ── admin_create_account: define max_users e o 1º login como admin do tenant ──
 drop function if exists
@@ -206,11 +206,11 @@ comment on function app.admin_list_accounts is
 -- ── Grants (recriados perdem o grant anterior) ────────────────────────────────
 grant execute on function
   app.admin_create_account(text, text, text, text, text, text, text, citext, text, text, text, timestamptz, integer)
-  to whitelabel_app;
+  to aubi_app;
 grant execute on function
   app.admin_update_account(text, text, text, text, text, text, text, integer)
-  to whitelabel_app;
-grant execute on function app.admin_list_accounts(text) to whitelabel_app;
+  to aubi_app;
+grant execute on function app.admin_list_accounts(text) to aubi_app;
 
 -- O admin de cada conta demo já existente vira admin do tenant (o 1º usuário).
 update app.users u

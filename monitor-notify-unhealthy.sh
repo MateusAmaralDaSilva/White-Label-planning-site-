@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Exporta automaticamente as variáveis do arquivo .env
 set -a
-source /home/ubuntu/White-Label-planning-site-/.env
+source /home/ubuntu/aubi/.env
 set +a
 
 NOTIFY_TO=${NOTIFY_TO:-}

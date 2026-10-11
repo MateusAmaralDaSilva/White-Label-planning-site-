@@ -1,6 +1,6 @@
-# Arquitetura — Plataforma Whitelabel
+# Arquitetura — Plataforma Aubi
 
-Painel administrativo **whitelabel** e **modular**: cada cliente (tenant) liga/desliga
+Painel administrativo **aubi** e **modular**: cada cliente (tenant) liga/desliga
 e reordena funcionalidades ("módulos") por uma barra lateral, e a identidade visual
 inteira é trocável por tokens de tema.
 
@@ -16,7 +16,7 @@ inteira é trocável por tokens de tema.
 | ----------- | ------------------------------- | ------------------------------------------------- |
 | Build / dev | **Vite**                  | Dev server rápido, HMR instantâneo              |
 | UI          | **React 18 + TypeScript** | Componentes tipados                               |
-| Estilo      | **Tailwind CSS**          | Tokens de design → tema whitelabel trocável     |
+| Estilo      | **Tailwind CSS**          | Tokens de design → tema aubi trocável     |
 | Estado      | **Zustand** (+ persist)   | Store global simples, sem boilerplate             |
 | Rotas       | **React Router 6**        | Rotas geradas dinamicamente a partir dos módulos |
 | Drag & drop | **@dnd-kit**              | Reordenar módulos no gerenciador                 |
@@ -69,7 +69,7 @@ Os componentes usam `bg-surface`, `text-ink-muted`, `bg-accent` etc. Em
 (`rgb(var(--color-surface) / <alpha-value>)`) em vez de um hex fixo. O valor de
 cada variável é definido pelo **tema ativo** (§2.3). **Trocar a identidade visual
 de um cliente = editar os tokens; trocar o tema = trocar o conjunto de valores das
-variáveis.** É esse o mecanismo "whitelabel".
+variáveis.** É esse o mecanismo "aubi".
 
 ### 2.3. Tema
 
@@ -337,7 +337,7 @@ um bundle dedicado:
 ```ts
 // src/config/brand.ts
 export const brand = {
-  name: import.meta.env.VITE_BRAND_NAME ?? 'Whitelabel',
+  name: import.meta.env.VITE_BRAND_NAME ?? 'Aubi',
   mark: import.meta.env.VITE_BRAND_MARK ?? 'WL',
   tagline: import.meta.env.VITE_BRAND_TAGLINE ?? '…',
 }
@@ -437,7 +437,7 @@ npm run preview # visualizar o build
 - **Registry único** em vez de rotas + menu separados → impossível ficarem
   dessincronizados; adicionar módulo é uma edição só.
 - **Tokens de tema** em vez de cores hardcoded → a troca de skin (o coração do
-  "whitelabel") é trivial e centralizada.
+  "aubi") é trivial e centralizada.
 - **Raio de borda como token** (`borderRadius` no `tailwind.config.js`) → a
   estética 100% retangular ("profissional") é uma edição só: todo o raio é `0`,
   inclusive `full`. Única exceção é o `Spinner`, que usa `rounded-[50%]` (valor

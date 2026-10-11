@@ -260,12 +260,12 @@ comment on function app.admin_delete_platform_expense is
   'Remove um custo mensal da plataforma. Exige admin de plataforma.';
 
 -- ── Grants: só a role da aplicação EXECUTA (nunca DML direto nas tabelas) ──────
-grant execute on function app.admin_record_billing_event(text, text, text, integer, numeric, timestamptz) to whitelabel_app;
-grant execute on function app.admin_revenue_by_month(text)                                                 to whitelabel_app;
-grant execute on function app.admin_revenue_by_tenant(text)                                                to whitelabel_app;
-grant execute on function app.admin_platform_expenses(text)                                                to whitelabel_app;
-grant execute on function app.admin_add_platform_expense(text, date, text, numeric)                        to whitelabel_app;
-grant execute on function app.admin_delete_platform_expense(text, bigint)                                  to whitelabel_app;
+grant execute on function app.admin_record_billing_event(text, text, text, integer, numeric, timestamptz) to aubi_app;
+grant execute on function app.admin_revenue_by_month(text)                                                 to aubi_app;
+grant execute on function app.admin_revenue_by_tenant(text)                                                to aubi_app;
+grant execute on function app.admin_platform_expenses(text)                                                to aubi_app;
+grant execute on function app.admin_add_platform_expense(text, date, text, numeric)                        to aubi_app;
+grant execute on function app.admin_delete_platform_expense(text, bigint)                                  to aubi_app;
 
 -- ============================================================================
 -- BACKFILL — histórico inicial aproximado a partir das contas já existentes

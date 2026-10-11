@@ -56,7 +56,7 @@ async function bootstrapUsers() {
     // Tenant 'teste'
     await pool.query(`
       INSERT INTO app.tenants (id, brand_name, brand_mark, theme_id, plan, paid_until)
-      VALUES ('teste', 'Whitelabel', 'WL', 'light', 'anual', now() + interval '1 year')
+      VALUES ('teste', 'Aubi', 'AUBI', 'light', 'anual', now() + interval '1 year')
       ON CONFLICT (id) DO NOTHING;
     `);
 

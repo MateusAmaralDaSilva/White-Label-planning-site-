@@ -74,12 +74,12 @@ $$;
 comment on function app.verify_credentials(citext, text) is
   'Login: compara a senha com crypt() DENTRO do banco e devolve o usuário público (sem hash). Timing-safe.';
 
-grant execute on function app.verify_credentials(citext, text) to whitelabel_app;
+grant execute on function app.verify_credentials(citext, text) to aubi_app;
 
 -- (3) A role da app não lê mais a coluna `password_hash` (só as demais). INSERT/
 --     UPDATE/DELETE seguem inalterados — escrever o hash na criação é ok; LER é que
 --     era o risco. (Todos os SELECTs diretos do app em app.users usam só estas
 --     colunas; a leitura para login vai pela função SECURITY DEFINER acima.)
-revoke select on app.users from whitelabel_app;
+revoke select on app.users from aubi_app;
 grant select (id, tenant_id, email, name, created_at, updated_at, is_platform_admin, is_tenant_admin)
-  on app.users to whitelabel_app;
+  on app.users to aubi_app;

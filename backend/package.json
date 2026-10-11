@@ -1,9 +1,9 @@
 {
-  "name": "whitelabel-backend",
+  "name": "aubi-backend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "API backend para a plataforma whitelabel (auth, config por tenant e dados dos módulos)",
+  "description": "API backend da plataforma Aubi (auth, config por tenant e dados dos módulos)",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",

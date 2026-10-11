@@ -3,7 +3,7 @@
 -- ----------------------------------------------------------------------------
 -- O coração da proteção contra ataques vindos do frontend. Três camadas:
 --
---   1. Menor privilégio: a API conecta como `whitelabel_app`, uma role sem
+--   1. Menor privilégio: a API conecta como `aubi_app`, uma role sem
 --      superuser, sem BYPASSRLS e sem DDL. Mesmo uma injeção de SQL bem-sucedida
 --      esbarra no que essa role NÃO pode fazer (sem DROP, sem ler outras tabelas,
 --      sem criar objetos).
@@ -29,8 +29,8 @@ set client_encoding to 'UTF8';
 -- gerenciador de segredos (nunca comite a senha real).
 do $$
 begin
-  if not exists (select 1 from pg_roles where rolname = 'whitelabel_app') then
-    create role whitelabel_app
+  if not exists (select 1 from pg_roles where rolname = 'aubi_app') then
+    create role aubi_app
       login
       password 'Madara1108.'
       nosuperuser
@@ -44,26 +44,26 @@ $$;
 
 -- Limites de recurso por conexão (defesa contra DoS por consulta cara ou
 -- transação pendurada segurando locks). Valores conservadores para uma API web.
-alter role whitelabel_app set statement_timeout = '5s';
-alter role whitelabel_app set idle_in_transaction_session_timeout = '10s';
+alter role aubi_app set statement_timeout = '5s';
+alter role aubi_app set idle_in_transaction_session_timeout = '10s';
 -- search_path fixo no schema app + pg_catalog: a role não enxerga o public.
-alter role whitelabel_app set search_path = 'app', 'pg_catalog';
+alter role aubi_app set search_path = 'app', 'pg_catalog';
 
 -- ── Superfície mínima ────────────────────────────────────────────────────────
 -- Ninguém cria objetos no public (reduz a superfície de "trojan" de schema).
 revoke create on schema public from public;
 
 -- A role só enxerga/usa o schema app — e nada de DDL nele.
-grant usage on schema app to whitelabel_app;
+grant usage on schema app to aubi_app;
 
 -- Só DML nas tabelas. Sem TRUNCATE, sem DDL. (SELECT/INSERT/UPDATE/DELETE.)
-grant select, insert, update, delete on all tables in schema app to whitelabel_app;
+grant select, insert, update, delete on all tables in schema app to aubi_app;
 
 -- Sequences das colunas identity (report_kpis, revenue_points, etc.).
-grant usage, select on all sequences in schema app to whitelabel_app;
+grant usage, select on all sequences in schema app to aubi_app;
 
 -- Funções expostas à aplicação: current_tenant() e a de autenticação.
-grant execute on all functions in schema app to whitelabel_app;
+grant execute on all functions in schema app to aubi_app;
 
 -- ── Row-Level Security ────────────────────────────────────────────────────────
 -- Habilita RLS e cria a política de isolamento por tenant em todas as tabelas de

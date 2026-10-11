@@ -98,7 +98,7 @@ export const useAppStore = create<AppState>()(
       // UI (sidebar recolhida) é persistida localmente. Alterações de módulos
       // feitas na sessão valem até o próximo carregamento, quando a config do
       // tenant é reaplicada.
-      name: 'whitelabel-ui-v3',
+      name: 'aubi-ui-v3',
       partialize: (state) => ({ sidebarCollapsed: state.sidebarCollapsed }),
     },
   ),

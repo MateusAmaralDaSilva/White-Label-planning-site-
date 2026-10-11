@@ -9,8 +9,8 @@ export const env = {
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean),
-  // String de conexão da role da APLICAÇÃO (whitelabel_app) — nunca a do dono do
-  // banco. Ex.: postgres://whitelabel_app:senha@localhost:5432/whitelabel
+  // String de conexão da role da APLICAÇÃO (aubi_app) — nunca a do dono do
+  // banco. Ex.: postgres://aubi_app:senha@localhost:5432/aubi
   databaseUrl: process.env.DATABASE_URL ?? '',
   // Confiança em proxy reverso, para o rate-limit ler o IP real do cliente
   // (X-Forwarded-For). Vazio = conexão direta (padrão seguro: sem spoofing).

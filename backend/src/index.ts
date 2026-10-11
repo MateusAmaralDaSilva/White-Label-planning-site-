@@ -48,6 +48,6 @@ app.use(notFoundHandler)
 app.use(errorHandler)
 
 app.listen(env.port, () => {
-  console.log(`API whitelabel ouvindo em http://localhost:${env.port}`)
+  console.log(`API Aubi ouvindo em http://localhost:${env.port}`)
   console.log(`CORS liberado para: ${env.corsOrigins.join(', ')}`)
 })

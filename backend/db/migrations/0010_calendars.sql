@@ -42,7 +42,7 @@ create policy tenant_isolation on app.calendars
 
 -- A role da aplicação precisa de DML na tabela nova (0002 concedeu só nas que
 -- existiam então).
-grant select, insert, update, delete on app.calendars to whitelabel_app;
+grant select, insert, update, delete on app.calendars to aubi_app;
 
 -- ── Agenda padrão "Geral" por tenant + vínculo dos eventos existentes ─────────
 -- Todo tenant recebe uma agenda "Geral" compartilhada (id determinístico para o

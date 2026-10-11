@@ -11,7 +11,7 @@ export const themeRegistry: Theme[] = [light, dark]
 
 export const defaultTheme = themeRegistry[0]
 
-const STORAGE_KEY = 'whitelabel-theme'
+const STORAGE_KEY = 'aubi-theme'
 
 /** Resolve um tema por id, caindo no default quando não encontra. */
 export function getTheme(id: string | undefined): Theme {

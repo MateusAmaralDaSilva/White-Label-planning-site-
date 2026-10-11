@@ -1,6 +1,6 @@
 param(
   [string]$ApiUrl = "http://localhost/api/auth/login",
-  [string]$DbContainer = "whitelabel-db"
+  [string]$DbContainer = "aubi-db"
 )
 
 $ErrorActionPreference = "Stop"
@@ -50,7 +50,7 @@ foreach ($acc in $accounts) {
   try {
     $query = "SELECT password_hash FROM app.users WHERE email = '$($acc.Email)';"
     # Parâmetros -tAc garantem que o psql retorne apenas o texto puro, sem cabeçalhos de tabela
-    $dbHash = docker exec $DbContainer psql -U postgres -d whitelabel -tAc $query
+    $dbHash = docker exec $DbContainer psql -U postgres -d aubi -tAc $query
     
     if ([string]::IsNullOrWhiteSpace($dbHash)) {
       $dbHash = "NENHUM HASH ENCONTRADO (Usuário não existe ou coluna está vazia)"

@@ -47,7 +47,7 @@ comment on function app.find_user_for_auth(citext) is
   'Busca de usuário para login (pré-contexto de tenant). Único ponto que expõe o password_hash. Devolve também o papel e a assinatura do tenant.';
 
 -- O grant se perde ao dropar a função; concede de novo à role da aplicação.
-grant execute on function app.find_user_for_auth(citext) to whitelabel_app;
+grant execute on function app.find_user_for_auth(citext) to aubi_app;
 
 -- Corrige os acentos do tenant técnico de administração. \00E7 = ç, \00E3 = ã.
 update app.tenants
