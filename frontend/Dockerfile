@@ -16,6 +16,6 @@ ENV VITE_API_URL=${VITE_API_URL}
 RUN chmod -R +x node_modules/.bin
 RUN npm run build
 
-FROM nginx:1.27-alpine
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /repo/frontend/dist /usr/share/nginx/html
+FROM caddy:2-alpine
+COPY frontend/Caddyfile /etc/caddy/Caddyfile
+COPY --from=build /repo/frontend/dist /usr/share/caddy

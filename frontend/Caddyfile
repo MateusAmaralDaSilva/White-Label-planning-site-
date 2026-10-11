@@ -1,0 +1,20 @@
+:80 {
+    request_body {
+        max_size 4MB
+    }
+
+    handle /health {
+        reverse_proxy backend:4000
+    }
+
+    handle /api/* {
+        reverse_proxy backend:4000
+    }
+
+    handle {
+        root * /usr/share/caddy
+        try_files {path} /index.html
+        file_server
+        encode gzip
+    }
+}
